@@ -18,9 +18,9 @@ export class InstallerService {
 
   async checkAll(): Promise<AllToolsStatus> {
     const [nodejs, claude, openclaw] = await Promise.all([
-      window.electronAPI.checkTool('node'),
-      window.electronAPI.checkTool('claude'),
-      window.electronAPI.checkTool('openclaw'),
+      (window as any).electronAPI.checkTool('node'),
+      (window as any).electronAPI.checkTool('claude'),
+      (window as any).electronAPI.checkTool('openclaw'),
     ]);
 
     return {
@@ -31,6 +31,23 @@ export class InstallerService {
   }
 
   async install(tool: 'claude' | 'openclaw'): Promise<{ success: boolean; output?: string; error?: string }> {
-    return window.electronAPI.installTool(tool);
+    return (window as any).electronAPI.installTool(tool);
+  }
+
+  async installClaude(): Promise<{ success: boolean; output?: string }> {
+    const config = await (window as any).electronAPI.getConfig();
+    return (window as any).electronAPI.installClaude(config.apiBaseUrl, config.apiKey);
+  }
+
+  async installOpenclaw(): Promise<{ success: boolean; output?: string }> {
+    return (window as any).electronAPI.installOpenclaw();
+  }
+
+  onInstallProgress(callback: (data: any) => void): void {
+    (window as any).electronAPI.onInstallProgress(callback);
+  }
+
+  removeInstallProgressListeners(): void {
+    (window as any).electronAPI.removeInstallProgressListeners();
   }
 }

@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterModule, RouterLink, RouterLinkActive, Router } from '@angular/router';
+import { InstallerService } from './services/installer.service';
 
 @Component({
   selector: 'app-root',
@@ -42,7 +43,7 @@ import { RouterModule, RouterLink, RouterLinkActive } from '@angular/router';
           </li>
         </ul>
         <div class="sidebar-footer">
-          <span class="version">v1.0.0</span>
+          <span class="version">v1.0.7</span>
         </div>
       </nav>
       <main class="main-content">
@@ -128,4 +129,27 @@ import { RouterModule, RouterLink, RouterLinkActive } from '@angular/router';
     }
   `],
 })
-export class AppComponent {}
+export class AppComponent implements OnInit {
+  constructor(
+    private router: Router,
+    private installer: InstallerService,
+  ) {}
+
+  async ngOnInit() {
+    // Auto-redirect: check if tools are installed
+    try {
+      const tools = await this.installer.checkAll();
+      const allInstalled = tools.claude.installed && tools.openclaw.installed;
+      if (!allInstalled) {
+        this.router.navigate(['/setup']);
+      } else {
+        // Only redirect to chat if we're at the root
+        if (window.location.hash === '' || window.location.hash === '#/' || window.location.hash === '#') {
+          this.router.navigate(['/chat']);
+        }
+      }
+    } catch {
+      // If check fails, let default routing handle it
+    }
+  }
+}

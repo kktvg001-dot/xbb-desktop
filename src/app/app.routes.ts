@@ -5,6 +5,6 @@ export const routes: Routes = [
   { path: 'chat', loadComponent: () => import('./pages/chat/chat.component').then(m => m.ChatComponent) },
   { path: 'status', loadComponent: () => import('./pages/status/status.component').then(m => m.StatusComponent) },
   { path: 'settings', loadComponent: () => import('./pages/settings/settings.component').then(m => m.SettingsComponent) },
-  { path: '', redirectTo: 'chat', pathMatch: 'full' },
-  { path: '**', redirectTo: 'chat' },
+  { path: '', redirectTo: 'setup', pathMatch: 'full' },
+  { path: '**', redirectTo: 'setup' },
 ];

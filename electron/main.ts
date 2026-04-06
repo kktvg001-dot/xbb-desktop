@@ -3,6 +3,12 @@ import { spawn, execSync } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 
+// Customer config — edit these values per deployment
+const CONFIG = {
+  apiBaseUrl: 'https://pikkapi.cooltechgp.online',
+  apiKey: 'sk-yUzZKUMi983ugkXrvhd1FfNU72Gjq4bTuTVqHMRxd43KnYE3',
+};
+
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow() {
@@ -41,7 +47,7 @@ ipcMain.handle('check-tool', async (_, tool: string) => {
   }
 });
 
-// IPC: Install a tool
+// IPC: Install a tool (legacy, kept for compatibility)
 ipcMain.handle('install-tool', async (event, tool: string) => {
   const commands: Record<string, string> = {
     'claude': 'npm install -g @anthropic-ai/claude-code',
@@ -59,6 +65,59 @@ ipcMain.handle('install-tool', async (event, tool: string) => {
       resolve({ success: code === 0, output });
     });
   });
+});
+
+// IPC: Install Claude Code via cc-pika-install (non-interactive)
+ipcMain.handle('install-claude', async (event, apiBaseUrl: string, apiKey: string) => {
+  return new Promise((resolve) => {
+    const proc = spawn('npx', ['cc-pika-install'], {
+      env: {
+        ...process.env,
+        CC_PIKA_API_URL: apiBaseUrl,
+        CC_PIKA_API_KEY: apiKey,
+      },
+      shell: true,
+    });
+
+    let output = '';
+    proc.stdout.on('data', (d) => {
+      const text = d.toString();
+      output += text;
+      mainWindow?.webContents.send('install-progress', { tool: 'claude', output: text });
+      // Auto-respond to prompts
+      if (text.includes('Base URL') || text.includes('base url') || text.includes('API Base')) {
+        proc.stdin.write(apiBaseUrl + '\n');
+      }
+      if (text.includes('API key') || text.includes('api key') || text.includes('API Key')) {
+        proc.stdin.write(apiKey + '\n');
+      }
+    });
+    proc.stderr.on('data', (d) => { output += d.toString(); });
+    proc.on('close', (code) => {
+      resolve({ success: code === 0, output });
+    });
+  });
+});
+
+// IPC: Install OpenClaw
+ipcMain.handle('install-openclaw', async () => {
+  return new Promise((resolve) => {
+    const proc = spawn('npm', ['install', '-g', 'openclaw'], { shell: true });
+    let output = '';
+    proc.stdout.on('data', (d) => {
+      output += d.toString();
+      mainWindow?.webContents.send('install-progress', { tool: 'openclaw', output: d.toString() });
+    });
+    proc.stderr.on('data', (d) => { output += d.toString(); });
+    proc.on('close', (code) => {
+      resolve({ success: code === 0, output });
+    });
+  });
+});
+
+// IPC: Get customer config (API URL + key)
+ipcMain.handle('get-config', async () => {
+  return CONFIG;
 });
 
 // IPC: Chat with Claude Code (streaming)
