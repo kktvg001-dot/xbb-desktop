@@ -13,18 +13,19 @@
     "package:all": "npm run build && electron-builder --win --mac --linux"
   },
   "dependencies": {
-    "@angular/core": "^19.0.0",
+    "@angular/animations": "^19.0.0",
     "@angular/common": "^19.0.0",
+    "@angular/core": "^19.0.0",
+    "@angular/forms": "^19.0.0",
     "@angular/platform-browser": "^19.0.0",
     "@angular/platform-browser-dynamic": "^19.0.0",
     "@angular/router": "^19.0.0",
-    "@angular/forms": "^19.0.0",
-    "@angular/animations": "^19.0.0",
     "rxjs": "^7.8.0",
     "tslib": "^2.6.0",
     "zone.js": "~0.15.0"
   },
   "devDependencies": {
+    "@angular/build": "^19.2.23",
     "@angular/cli": "^19.0.0",
     "@angular/compiler": "^19.0.0",
     "@angular/compiler-cli": "^19.0.0",
