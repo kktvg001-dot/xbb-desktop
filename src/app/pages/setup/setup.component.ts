@@ -52,7 +52,7 @@ type SetupStep = 'welcome' | 'claude' | 'openclaw' | 'configure' | 'ready';
           </div>
 
           <div class="tool-version" *ngIf="tools?.claude?.version && (claudeStatus === 'done' || claudeStatus === 'skipped')">
-            <span class="check-mark">&#10003;</span> Claude Code {{ tools.claude.version }}
+            <span class="check-mark">&#10003;</span> Claude Code {{ tools?.claude?.version }}
           </div>
 
           <div class="step-actions">
@@ -86,7 +86,7 @@ type SetupStep = 'welcome' | 'claude' | 'openclaw' | 'configure' | 'ready';
           </div>
 
           <div class="tool-version" *ngIf="tools?.openclaw?.version && (openclawStatus === 'done' || openclawStatus === 'skipped')">
-            <span class="check-mark">&#10003;</span> OpenClaw {{ tools.openclaw.version }}
+            <span class="check-mark">&#10003;</span> OpenClaw {{ tools?.openclaw?.version }}
           </div>
 
           <div class="step-actions">
@@ -115,19 +115,19 @@ type SetupStep = 'welcome' | 'claude' | 'openclaw' | 'configure' | 'ready';
             </div>
             <div class="config-item" *ngIf="tools?.claude">
               <span class="config-label">
-                <span class="check-mark" *ngIf="tools.claude.installed">&#10003;</span>
-                <span class="x-mark" *ngIf="!tools.claude.installed">&#10007;</span>
+                <span class="check-mark" *ngIf="tools?.claude?.installed">&#10003;</span>
+                <span class="x-mark" *ngIf="!tools?.claude?.installed">&#10007;</span>
                 Claude Code
               </span>
-              <span class="config-value">{{ tools.claude.version || 'not found' }}</span>
+              <span class="config-value">{{ tools?.claude?.version || 'not found' }}</span>
             </div>
             <div class="config-item" *ngIf="tools?.openclaw">
               <span class="config-label">
-                <span class="check-mark" *ngIf="tools.openclaw.installed">&#10003;</span>
-                <span class="x-mark" *ngIf="!tools.openclaw.installed">&#10007;</span>
+                <span class="check-mark" *ngIf="tools?.openclaw?.installed">&#10003;</span>
+                <span class="x-mark" *ngIf="!tools?.openclaw?.installed">&#10007;</span>
                 OpenClaw
               </span>
-              <span class="config-value">{{ tools.openclaw.version || 'not found' }}</span>
+              <span class="config-value">{{ tools?.openclaw?.version || 'not found' }}</span>
             </div>
           </div>
 
