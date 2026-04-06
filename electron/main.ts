@@ -184,7 +184,18 @@ ipcMain.handle('install-nodejs', async () => {
 
       // Clean up
       try { fs.unlinkSync(msiPath); } catch {}
-      send('✅ Node.js installed! You may need to restart the app.');
+
+      // Refresh PATH — Node.js MSI installs to C:\Program Files\nodejs\
+      const nodePaths = [
+        'C:\\Program Files\\nodejs',
+        path.join(getHomeDir(), 'AppData', 'Roaming', 'npm'),
+      ];
+      for (const p of nodePaths) {
+        if (fs.existsSync(p) && !process.env.PATH?.includes(p)) {
+          process.env.PATH = p + ';' + process.env.PATH;
+        }
+      }
+      send('✅ Node.js installed!');
 
     } else if (process.platform === 'darwin') {
       // Mac: download Node.js PKG and install
@@ -202,6 +213,14 @@ ipcMain.handle('install-nodejs', async () => {
       } as any);
 
       try { fs.unlinkSync(pkgPath); } catch {}
+
+      // Refresh PATH for Mac
+      const macPaths = ['/usr/local/bin', '/opt/homebrew/bin'];
+      for (const p of macPaths) {
+        if (!process.env.PATH?.includes(p)) {
+          process.env.PATH = p + ':' + process.env.PATH;
+        }
+      }
       send('✅ Node.js installed!');
 
     } else {
@@ -290,23 +309,34 @@ ipcMain.handle('install-openclaw', async () => {
       return { success: true, output: version };
     }
 
-    // Check if npm is available (Node.js must be installed first)
+    // Find npm — check PATH (including freshly installed Node.js locations)
+    let npmCmd = 'npm';
     if (!commandExists('npm')) {
-      send('❌ npm not found. Please install Node.js first.');
-      return { success: false, output: 'npm not found. Install Node.js first.' };
+      // Try known locations after fresh install
+      const npmLocations = process.platform === 'win32'
+        ? ['C:\\Program Files\\nodejs\\npm.cmd', path.join(getHomeDir(), 'AppData', 'Roaming', 'npm', 'npm.cmd')]
+        : ['/usr/local/bin/npm', '/opt/homebrew/bin/npm', '/usr/bin/npm'];
+
+      const found = npmLocations.find(p => fs.existsSync(p));
+      if (found) {
+        npmCmd = `"${found}"`;
+        send('Found npm at: ' + found);
+      } else {
+        send('❌ npm not found. Please restart the app after Node.js installation.');
+        return { success: false, output: 'npm not found. Restart app and try again.' };
+      }
     }
 
     send('📦 Installing OpenClaw via npm...');
 
     if (process.platform === 'win32') {
-      execSync('npm install -g openclaw', { timeout: 180000, stdio: 'pipe' } as any);
+      execSync(`${npmCmd} install -g openclaw`, { timeout: 180000, stdio: 'pipe', env: process.env } as any);
     } else {
-      // Mac/Linux may need sudo
       try {
-        execSync('npm install -g openclaw', { timeout: 180000, stdio: 'pipe' } as any);
+        execSync(`${npmCmd} install -g openclaw`, { timeout: 180000, stdio: 'pipe', env: process.env } as any);
       } catch {
         send('Retrying with elevated permissions...');
-        execSync('sudo npm install -g openclaw', { timeout: 180000, stdio: 'pipe' } as any);
+        execSync(`sudo ${npmCmd} install -g openclaw`, { timeout: 180000, stdio: 'pipe', env: process.env } as any);
       }
     }
 
