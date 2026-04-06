@@ -1,0 +1,12 @@
+appId: com.xbb.desktop
+productName: "OpenClaw Assistant"
+directories:
+  output: release
+files:
+  - dist/**/*
+  - electron/**/*.js
+mac:
+  category: public.app-category.productivity
+  target: dmg
+win:
+  target: nsis
