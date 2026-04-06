@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage } from 'electron';
 import { spawn, execSync, exec } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -13,6 +13,14 @@ const CONFIG = {
 };
 
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let isQuitting = false;
+
+// ============ AUTO-START ON BOOT ============
+app.setLoginItemSettings({
+  openAtLogin: true,
+  openAsHidden: true, // Start minimized to tray
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -33,11 +41,113 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../browser/index.html'));
   }
+
+  // Close button minimizes to tray instead of quitting
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow?.hide();
+    }
+  });
 }
 
-app.whenReady().then(createWindow);
-app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
-app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+// ============ SYSTEM TRAY ============
+function createTray() {
+  // Create tray icon (green circle for OpenClaw)
+  const iconSize = 16;
+  const icon = nativeImage.createEmpty();
+
+  // Try to load icon from build directory
+  const iconPath = path.join(__dirname, '..', 'build', 'icon.png');
+  if (fs.existsSync(iconPath)) {
+    tray = new Tray(nativeImage.createFromPath(iconPath).resize({ width: iconSize, height: iconSize }));
+  } else {
+    // Fallback: create a simple colored icon programmatically
+    tray = new Tray(nativeImage.createEmpty());
+  }
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '📊 Open Dashboard',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        } else {
+          createWindow();
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: '🔄 Restart OpenClaw',
+      click: () => {
+        try {
+          execSync('openclaw daemon restart 2>&1', { encoding: 'utf8', timeout: 15000 });
+        } catch {}
+      },
+    },
+    {
+      label: '⏹️ Stop OpenClaw',
+      click: () => {
+        try {
+          execSync('openclaw daemon stop 2>&1', { encoding: 'utf8', timeout: 15000 });
+        } catch {}
+      },
+    },
+    { type: 'separator' },
+    {
+      label: '❌ Quit',
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setToolTip('OpenClaw Assistant');
+  tray.setContextMenu(contextMenu);
+
+  // Double-click tray icon opens the window
+  tray.on('double-click', () => {
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    } else {
+      createWindow();
+    }
+  });
+}
+
+app.whenReady().then(() => {
+  createWindow();
+  createTray();
+
+  // If launched at login (hidden), hide the window
+  if (app.getLoginItemSettings().wasOpenedAsHidden) {
+    mainWindow?.hide();
+  }
+});
+
+app.on('window-all-closed', () => {
+  // Don't quit — keep running in tray
+  // Only quit on Mac if isQuitting
+  if (process.platform !== 'darwin' && isQuitting) {
+    app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (mainWindow) {
+    mainWindow.show();
+  } else {
+    createWindow();
+  }
+});
+
+app.on('before-quit', () => {
+  isQuitting = true;
+});
 
 // ============ HELPERS ============
 
@@ -428,4 +538,25 @@ ipcMain.handle('openclaw-restart', async () => {
   } catch (e: any) {
     return { success: false, error: e.message };
   }
+});
+
+// ============ IPC: AUTO-START SETTINGS ============
+
+ipcMain.handle('get-autostart', async () => {
+  return app.getLoginItemSettings().openAtLogin;
+});
+
+ipcMain.handle('set-autostart', async (_, enabled: boolean) => {
+  app.setLoginItemSettings({
+    openAtLogin: enabled,
+    openAsHidden: true,
+  });
+  return { success: true, enabled };
+});
+
+// ============ IPC: MINIMIZE TO TRAY ============
+
+ipcMain.handle('minimize-to-tray', async () => {
+  mainWindow?.hide();
+  return { success: true };
 });

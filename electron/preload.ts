@@ -26,4 +26,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   getOpenclawStatus: () => ipcRenderer.invoke('openclaw-status'),
   restartOpenclaw: () => ipcRenderer.invoke('openclaw-restart'),
+  getAutostart: () => ipcRenderer.invoke('get-autostart'),
+  setAutostart: (enabled: boolean) => ipcRenderer.invoke('set-autostart', enabled),
+  minimizeToTray: () => ipcRenderer.invoke('minimize-to-tray'),
 });
