@@ -2,6 +2,10 @@
   "name": "xbb-desktop",
   "version": "1.0.0",
   "description": "OpenClaw Assistant — Desktop app for managing your WhatsApp AI",
+  "author": {
+    "name": "xbb",
+    "email": "support@cooltechgp.online"
+  },
   "main": "dist/electron/main.js",
   "scripts": {
     "ng": "ng",
