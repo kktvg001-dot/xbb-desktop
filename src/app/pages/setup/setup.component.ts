@@ -11,62 +11,52 @@ type WizardStep = 1 | 2 | 3 | 4;
   imports: [CommonModule],
   template: `
     <div class="setup-fullscreen">
-      <!-- Browser mode fallback -->
-      <div class="setup-card" *ngIf="browserMode">
-        <div class="step-icon">&#128187;</div>
-        <h1 class="step-title">Desktop App Required</h1>
-        <p class="step-desc">Running in browser mode. Install features require the desktop app.</p>
-        <p class="step-detail">Download the desktop version to continue setup.</p>
-      </div>
-
-      <!-- Wizard -->
-      <div class="setup-card" *ngIf="!browserMode" [class.animate-in]="animateIn">
-        <!-- Overall progress header -->
+      <div class="setup-card" [class.animate-in]="animateIn">
+        <!-- Progress header -->
         <div class="progress-header">
-          <span class="progress-label">Step {{ currentStep }} of 4</span>
-          <span class="progress-pct">{{ overallPercent }}%</span>
-        </div>
-        <div class="overall-progress-bar">
-          <div class="overall-progress-fill" [style.width.%]="overallPercent"></div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" [style.width.%]="overallPercent"></div>
+          </div>
+          <span class="progress-text">Step {{ currentStep }} of 4</span>
         </div>
 
         <!-- Step 1: Welcome -->
         <div class="step" *ngIf="currentStep === 1">
-          <div class="step-icon">&#127881;</div>
+          <div class="step-icon">&#128640;</div>
           <h1 class="step-title">Welcome!</h1>
-          <p class="step-desc">Let's set up your AI assistant.</p>
-          <p class="step-detail">This will take about 2 minutes.</p>
-          <div class="step-actions center">
-            <button class="btn btn-primary btn-large" (click)="startSetup()">
-              Get Started <span class="arrow">&#8594;</span>
+          <p class="step-desc">Let's set up your AI assistant in under 2 minutes.</p>
+          <div class="step-actions">
+            <button class="btn btn-primary btn-full" (click)="startSetup()">
+              Get Started
             </button>
           </div>
         </div>
 
-        <!-- Step 2: Install AI Engine (Node.js + Claude Code) -->
+        <!-- Step 2: Install AI Engine -->
         <div class="step" *ngIf="currentStep === 2">
-          <div class="step-icon">&#9881;</div>
-          <h1 class="step-title">Installing AI Engine</h1>
-          <p class="step-desc">{{ stepActionText }}</p>
-
-          <div class="step-progress-bar" *ngIf="stepStatus === 'installing'">
-            <div class="step-progress-fill" [style.width.%]="stepProgress"></div>
+          <div class="step-header-row">
+            <span class="tool-icon">&#9881;&#65039;</span>
+            <h1 class="step-title inline">AI Engine</h1>
           </div>
-          <div class="step-progress-text" *ngIf="stepStatus === 'installing'">{{ stepProgress }}%</div>
+          <div class="preview-badge" *ngIf="browserMode">Preview — requires desktop app</div>
+          <p class="step-desc status-text">
+            <span *ngIf="stepStatus === 'installing'">Installing...</span>
+            <span *ngIf="stepStatus === 'done'" class="status-ok">&#10004; Installed</span>
+            <span *ngIf="stepStatus === 'error'" class="status-err">&#10008; Failed</span>
+            <span *ngIf="stepStatus === 'idle'">{{ stepActionText }}</span>
+          </p>
+
+          <div class="install-progress-bar" *ngIf="stepStatus === 'installing'">
+            <div class="install-progress-fill" [style.width.%]="stepProgress"></div>
+          </div>
 
           <div class="log-box" *ngIf="logOutput" #logBox>
             <pre>{{ logOutput }}</pre>
           </div>
 
-          <div class="status-badge success" *ngIf="stepStatus === 'done'">
-            <span>&#10003;</span> AI Engine ready!
-          </div>
-          <div class="status-badge error" *ngIf="stepStatus === 'error'">
-            <span>&#10007;</span> Installation failed
-          </div>
-
-          <div class="step-actions center">
-            <button class="btn btn-primary" *ngIf="stepStatus === 'error'" (click)="runStep2()">
+          <div class="step-actions">
+            <button class="btn btn-primary btn-full" *ngIf="stepStatus === 'error'" (click)="runStep2()"
+              [attr.title]="browserMode ? 'Requires desktop app' : null">
               Retry
             </button>
           </div>
@@ -74,28 +64,29 @@ type WizardStep = 1 | 2 | 3 | 4;
 
         <!-- Step 3: Install OpenClaw -->
         <div class="step" *ngIf="currentStep === 3">
-          <div class="step-icon">&#128241;</div>
-          <h1 class="step-title">Installing OpenClaw</h1>
-          <p class="step-desc">{{ stepActionText }}</p>
-
-          <div class="step-progress-bar" *ngIf="stepStatus === 'installing'">
-            <div class="step-progress-fill" [style.width.%]="stepProgress"></div>
+          <div class="step-header-row">
+            <span class="tool-icon">&#128241;</span>
+            <h1 class="step-title inline">OpenClaw</h1>
           </div>
-          <div class="step-progress-text" *ngIf="stepStatus === 'installing'">{{ stepProgress }}%</div>
+          <div class="preview-badge" *ngIf="browserMode">Preview — requires desktop app</div>
+          <p class="step-desc status-text">
+            <span *ngIf="stepStatus === 'installing'">Installing...</span>
+            <span *ngIf="stepStatus === 'done'" class="status-ok">&#10004; Installed</span>
+            <span *ngIf="stepStatus === 'error'" class="status-err">&#10008; Failed</span>
+            <span *ngIf="stepStatus === 'idle'">{{ stepActionText }}</span>
+          </p>
+
+          <div class="install-progress-bar" *ngIf="stepStatus === 'installing'">
+            <div class="install-progress-fill" [style.width.%]="stepProgress"></div>
+          </div>
 
           <div class="log-box" *ngIf="logOutput" #logBox>
             <pre>{{ logOutput }}</pre>
           </div>
 
-          <div class="status-badge success" *ngIf="stepStatus === 'done'">
-            <span>&#10003;</span> OpenClaw ready!
-          </div>
-          <div class="status-badge error" *ngIf="stepStatus === 'error'">
-            <span>&#10007;</span> Installation failed
-          </div>
-
-          <div class="step-actions center">
-            <button class="btn btn-primary" *ngIf="stepStatus === 'error'" (click)="runStep3()">
+          <div class="step-actions">
+            <button class="btn btn-primary btn-full" *ngIf="stepStatus === 'error'" (click)="runStep3()"
+              [attr.title]="browserMode ? 'Requires desktop app' : null">
               Retry
             </button>
           </div>
@@ -108,27 +99,25 @@ type WizardStep = 1 | 2 | 3 | 4;
           <p class="step-desc">Your AI assistant is ready to help.</p>
 
           <div class="config-list">
-            <div class="config-item" *ngIf="tools?.claude">
+            <div class="config-item" *ngIf="tools?.claude || browserMode">
               <span class="config-label">
-                <span class="check-mark" *ngIf="tools?.claude?.installed">&#10003;</span>
-                <span class="x-mark" *ngIf="!tools?.claude?.installed">&#10007;</span>
+                <span class="check-icon">&#10004;</span>
                 Claude Code
               </span>
-              <span class="config-value">{{ tools?.claude?.version || 'n/a' }}</span>
+              <span class="config-value">{{ tools?.claude?.version || (browserMode ? 'v1.0.x' : 'n/a') }}</span>
             </div>
-            <div class="config-item" *ngIf="tools?.openclaw">
+            <div class="config-item" *ngIf="tools?.openclaw || browserMode">
               <span class="config-label">
-                <span class="check-mark" *ngIf="tools?.openclaw?.installed">&#10003;</span>
-                <span class="x-mark" *ngIf="!tools?.openclaw?.installed">&#10007;</span>
+                <span class="check-icon">&#10004;</span>
                 OpenClaw
               </span>
-              <span class="config-value">{{ tools?.openclaw?.version || 'n/a' }}</span>
+              <span class="config-value">{{ tools?.openclaw?.version || (browserMode ? 'v2.4.x' : 'n/a') }}</span>
             </div>
           </div>
 
-          <div class="step-actions center">
-            <button class="btn btn-success btn-large" (click)="startChatting()">
-              Start Chatting <span class="arrow">&#8594;</span>
+          <div class="step-actions">
+            <button class="btn btn-primary btn-full" (click)="startChatting()">
+              Open Dashboard <span class="arrow">&rarr;</span>
             </button>
           </div>
         </div>
@@ -138,6 +127,7 @@ type WizardStep = 1 | 2 | 3 | 4;
     </div>
   `,
   styles: [`
+    /* ========== Layout ========== */
     .setup-fullscreen {
       display: flex;
       align-items: center;
@@ -145,116 +135,152 @@ type WizardStep = 1 | 2 | 3 | 4;
       min-height: 100vh;
       width: 100%;
       padding: 24px;
-      background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f0 100%);
+      background: linear-gradient(160deg, #f0f4f8 0%, #e2e8f0 50%, #dfe6ed 100%);
     }
+
     .setup-card {
       background: #fff;
-      border-radius: 16px;
-      padding: 40px 40px 36px;
-      max-width: 580px;
+      border-radius: 20px;
+      padding: 44px 44px 40px;
+      max-width: 500px;
       width: 100%;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
-      transition: opacity 0.3s ease, transform 0.3s ease;
+      box-shadow:
+        0 1px 3px rgba(0,0,0,0.04),
+        0 8px 32px rgba(0,0,0,0.08);
+      opacity: 0;
+      transform: translateY(16px);
     }
     .setup-card.animate-in {
-      animation: slideIn 0.3s ease forwards;
+      animation: cardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateY(12px); }
-      to { opacity: 1; transform: translateY(0); }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* Overall progress header */
+    /* ========== Progress Header ========== */
     .progress-header {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      gap: 16px;
+      margin-bottom: 36px;
     }
-    .progress-label {
-      font-size: 13px;
-      font-weight: 600;
-      color: #666;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .progress-pct {
-      font-size: 13px;
-      font-weight: 600;
-      color: #00a884;
-    }
-    .overall-progress-bar {
-      height: 8px;
-      background: #e0e0e0;
-      border-radius: 4px;
+    .progress-bar-track {
+      flex: 1;
+      height: 6px;
+      background: #e8ecf0;
+      border-radius: 3px;
       overflow: hidden;
-      margin-bottom: 32px;
     }
-    .overall-progress-fill {
+    .progress-bar-fill {
       height: 100%;
       background: linear-gradient(90deg, #00a884, #00c49a);
-      border-radius: 4px;
-      transition: width 0.5s ease;
+      border-radius: 3px;
+      transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .progress-text {
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      white-space: nowrap;
     }
 
-    /* Step content */
+    /* ========== Step Content ========== */
     .step {
       text-align: center;
     }
     .step-icon {
-      font-size: 48px;
-      margin-bottom: 12px;
+      font-size: 52px;
+      margin-bottom: 8px;
       line-height: 1;
     }
     .step-icon.large {
       font-size: 64px;
     }
     .step-title {
-      font-size: 24px;
+      font-size: 28px;
       font-weight: 700;
-      margin: 0 0 8px;
-      color: #1a1a2e;
+      margin: 0 0 10px;
+      color: #1e293b;
+      letter-spacing: -0.3px;
+    }
+    .step-title.inline {
+      display: inline;
+      font-size: 22px;
     }
     .step-desc {
-      color: #666;
-      margin: 0 0 8px;
-      font-size: 15px;
-    }
-    .step-detail {
-      color: #999;
-      font-size: 13px;
-      margin: 0 0 28px;
+      color: #64748b;
+      margin: 0 0 24px;
+      font-size: 16px;
+      line-height: 1.5;
     }
 
-    /* Per-step progress bar */
-    .step-progress-bar {
-      height: 10px;
-      background: #e0e0e0;
-      border-radius: 5px;
-      margin: 20px 0 6px;
-      overflow: hidden;
+    /* Header row for install steps */
+    .step-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 8px;
     }
-    .step-progress-fill {
+    .tool-icon {
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    /* Status text colors */
+    .status-text { font-size: 15px; }
+    .status-ok { color: #16a34a; font-weight: 600; }
+    .status-err { color: #dc2626; font-weight: 600; }
+
+    /* Preview badge for browser mode */
+    .preview-badge {
+      display: inline-block;
+      background: #fef3c7;
+      color: #92400e;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      padding: 4px 14px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+
+    /* ========== Install Progress Bar ========== */
+    .install-progress-bar {
+      height: 10px;
+      background: #e8ecf0;
+      border-radius: 5px;
+      overflow: hidden;
+      margin: 0 0 16px;
+      position: relative;
+    }
+    .install-progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #00a884, #00c49a);
       border-radius: 5px;
       transition: width 0.4s ease;
+      background: linear-gradient(
+        90deg,
+        #00a884 0%, #00c49a 25%, #00a884 50%, #00c49a 75%, #00a884 100%
+      );
+      background-size: 200% 100%;
+      animation: shimmer 1.8s linear infinite;
     }
-    .step-progress-text {
-      font-size: 13px;
-      font-weight: 600;
-      color: #00a884;
-      text-align: right;
-      margin-bottom: 12px;
+    @keyframes shimmer {
+      from { background-position: 200% 0; }
+      to   { background-position: -200% 0; }
     }
 
-    /* Log output */
+    /* ========== Log Box ========== */
     .log-box {
       background: #1a1a2e;
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 14px 16px;
-      margin: 16px 0;
-      max-height: 200px;
+      margin: 0 0 16px;
+      max-height: 150px;
       overflow-y: auto;
       text-align: left;
     }
@@ -265,111 +291,96 @@ type WizardStep = 1 | 2 | 3 | 4;
       font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
       white-space: pre-wrap;
       word-break: break-all;
-      line-height: 1.5;
+      line-height: 1.6;
     }
 
-    /* Status badges */
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      margin: 16px 0;
-    }
-    .status-badge.success {
-      background: #e8f5e9;
-      color: #2e7d32;
-    }
-    .status-badge.error {
-      background: #fbe9e7;
-      color: #d32f2f;
-    }
-
-    /* Config list (ready step) */
+    /* ========== Config List (Ready step) ========== */
     .config-list {
       text-align: left;
       margin: 24px 0;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
     .config-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 14px 16px;
-      background: #f8f9fa;
-      border-radius: 8px;
+      padding: 14px 18px;
+      background: #f8fafc;
+      border-radius: 10px;
+      border: 1px solid #f1f5f9;
     }
     .config-label {
       font-weight: 600;
       font-size: 14px;
-      color: #1a1a2e;
+      color: #1e293b;
       display: flex;
       align-items: center;
       gap: 8px;
     }
+    .check-icon {
+      color: #16a34a;
+      font-weight: 700;
+      font-size: 15px;
+    }
     .config-value {
       font-size: 13px;
-      color: #666;
+      color: #64748b;
       font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
     }
-    .check-mark { color: #2e7d32; font-weight: 700; }
-    .x-mark { color: #d32f2f; font-weight: 700; }
 
-    /* Actions */
+    /* ========== Buttons ========== */
     .step-actions {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      margin-top: 24px;
-    }
-    .step-actions.center {
-      justify-content: center;
+      margin-top: 8px;
     }
     .btn {
-      padding: 10px 24px;
+      padding: 14px 28px;
       border: none;
-      border-radius: 8px;
-      font-size: 14px;
+      border-radius: 12px;
+      font-size: 15px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      justify-content: center;
+      gap: 8px;
     }
     .btn:disabled {
-      opacity: 0.5;
+      opacity: 0.45;
       cursor: not-allowed;
+      transform: none !important;
     }
     .btn:hover:not(:disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0, 168, 132, 0.3);
+    }
+    .btn:active:not(:disabled) {
+      transform: translateY(0);
     }
     .btn-primary {
       background: #00a884;
       color: #fff;
     }
-    .btn-success {
-      background: #00a884;
-      color: #fff;
-    }
-    .btn-large {
-      padding: 14px 36px;
+    .btn-full {
+      width: 100%;
+      padding: 16px 28px;
       font-size: 16px;
     }
     .arrow {
-      font-size: 16px;
+      font-size: 18px;
     }
+
+    /* ========== Error ========== */
     .error-text {
-      color: #d32f2f;
+      color: #dc2626;
       font-size: 13px;
       margin-top: 16px;
       text-align: center;
+      background: #fef2f2;
+      padding: 10px 16px;
+      border-radius: 8px;
     }
   `],
 })
@@ -387,6 +398,8 @@ export class SetupComponent implements OnInit, OnDestroy {
   stepActionText = '';
   logOutput = '';
 
+  private mockTimer: any = null;
+
   @ViewChild('logBox') logBox?: ElementRef;
 
   get overallPercent(): number {
@@ -401,7 +414,6 @@ export class SetupComponent implements OnInit, OnDestroy {
   ngOnInit() {
     if (!this.installer.isElectron) {
       this.browserMode = true;
-      this.errorMessage = 'Running in browser mode. Install features require the desktop app.';
       return;
     }
     this.checkTools();
@@ -424,6 +436,7 @@ export class SetupComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.installer.removeInstallProgressListeners();
+    if (this.mockTimer) { clearInterval(this.mockTimer); }
   }
 
   async checkTools() {
@@ -455,20 +468,76 @@ export class SetupComponent implements OnInit, OnDestroy {
     }, 50);
   }
 
+  // --- Mock install simulation for browser mode ---
+  private runMockInstall(stepName: string, doneMsg: string, nextAction: () => void) {
+    this.stepStatus = 'installing';
+    this.stepProgress = 0;
+    this.logOutput = '';
+    this.stepActionText = 'Installing ' + stepName + '...';
+
+    const mockLines = [
+      'Resolving dependencies...',
+      'Downloading packages...',
+      'Extracting archive...',
+      'Compiling native modules...',
+      'Linking binaries...',
+      'Verifying installation...',
+      'Running post-install hooks...',
+      'Cleaning up temporary files...',
+    ];
+    let lineIdx = 0;
+
+    this.mockTimer = setInterval(() => {
+      if (this.stepProgress >= 100) {
+        clearInterval(this.mockTimer);
+        this.mockTimer = null;
+        this.stepStatus = 'done';
+        this.stepActionText = doneMsg;
+        this.logOutput += '\n' + doneMsg + '\n';
+        setTimeout(() => nextAction(), 1500);
+        return;
+      }
+      this.stepProgress = Math.min(this.stepProgress + 12, 100);
+      if (lineIdx < mockLines.length) {
+        this.logOutput += mockLines[lineIdx] + '\n';
+        lineIdx++;
+      }
+      this.scrollLogToBottom();
+    }, 400);
+  }
+
   async startSetup() {
+    if (this.browserMode) {
+      this.goToStep(2);
+      setTimeout(() => this.runMockStep2(), 200);
+      return;
+    }
     await this.checkTools();
     this.goToStep(2);
     setTimeout(() => this.runStep2(), 200);
   }
 
+  private runMockStep2() {
+    this.runMockInstall('AI Engine', 'AI Engine is ready!', () => {
+      this.goToStep(3);
+      setTimeout(() => this.runMockStep3(), 200);
+    });
+  }
+
+  private runMockStep3() {
+    this.runMockInstall('OpenClaw', 'OpenClaw is ready!', () => {
+      this.goToStep(4);
+    });
+  }
+
   async runStep2() {
+    if (this.browserMode) { this.runMockStep2(); return; }
     this.stepStatus = 'installing';
     this.stepProgress = 0;
     this.logOutput = '';
     this.errorMessage = '';
 
     try {
-      // Phase 1: Node.js
       if (this.tools?.nodejs?.installed) {
         this.stepActionText = 'Node.js already installed.';
         this.logOutput += 'Node.js ' + (this.tools.nodejs.version || '') + ' found.\n';
@@ -486,7 +555,6 @@ export class SetupComponent implements OnInit, OnDestroy {
         this.logOutput += '\nNode.js installed successfully.\n';
       }
 
-      // Phase 2: Claude Code
       if (this.tools?.claude?.installed) {
         this.stepActionText = 'Claude Code already installed.';
         this.logOutput += 'Claude Code ' + (this.tools.claude.version || '') + ' found.\n';
@@ -509,7 +577,6 @@ export class SetupComponent implements OnInit, OnDestroy {
       this.stepActionText = 'AI Engine is ready!';
       await this.checkTools();
 
-      // Auto-advance after 1.5s
       setTimeout(() => {
         this.goToStep(3);
         setTimeout(() => this.runStep3(), 200);
@@ -523,6 +590,7 @@ export class SetupComponent implements OnInit, OnDestroy {
   }
 
   async runStep3() {
+    if (this.browserMode) { this.runMockStep3(); return; }
     this.stepStatus = 'installing';
     this.stepProgress = 0;
     this.logOutput = '';
@@ -551,7 +619,6 @@ export class SetupComponent implements OnInit, OnDestroy {
       this.stepActionText = 'OpenClaw is ready!';
       await this.checkTools();
 
-      // Auto-advance after 1.5s
       setTimeout(() => this.goToStep(4), 1500);
 
     } catch (e: any) {
