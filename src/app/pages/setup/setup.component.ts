@@ -22,8 +22,7 @@ type WizardStep = 1 | 2 | 3 | 4;
 
         <!-- Step 1: Welcome -->
         <div class="step" *ngIf="currentStep === 1">
-          <div class="step-icon">&#128640;</div>
-          <h1 class="step-title">Welcome!</h1>
+          <h1 class="step-title" style="font-size:32px; margin-bottom:8px;">OpenClaw Assistant</h1>
           <p class="step-desc">Let's set up your AI assistant in under 2 minutes.</p>
           <div class="step-actions">
             <button class="btn btn-primary btn-full" (click)="startSetup()">
