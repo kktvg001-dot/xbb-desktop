@@ -2,11 +2,36 @@ appId: com.xbb.desktop
 productName: "OpenClaw Assistant"
 directories:
   output: release
+  buildResources: build
+
 files:
   - dist/**/*
-  - electron/**/*.js
+  - "!node_modules/**/*"
+
 mac:
   category: public.app-category.productivity
-  target: dmg
+  target:
+    - dmg
+    - zip
+  icon: build/icon.icns
+
 win:
-  target: nsis
+  target:
+    - nsis
+  icon: build/icon.ico
+  artifactName: "OpenClaw-Assistant-Setup-${version}.${ext}"
+
+nsis:
+  oneClick: true
+  allowToChangeInstallationDirectory: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: "OpenClaw Assistant"
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Utility
+  icon: build/icon.png
+  artifactName: "OpenClaw-Assistant-${version}.${ext}"

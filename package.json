@@ -4,10 +4,13 @@
   "description": "OpenClaw Assistant — Desktop app for managing your WhatsApp AI",
   "main": "dist/electron/main.js",
   "scripts": {
-    "start": "electron .",
-    "build": "tsc -p tsconfig.electron.json && ng build",
-    "package:win": "electron-builder --win",
-    "package:mac": "electron-builder --mac"
+    "ng": "ng",
+    "start": "ng serve & sleep 5 && electron .",
+    "build": "ng build --configuration production && tsc -p tsconfig.electron.json",
+    "package:win": "npm run build && electron-builder --win",
+    "package:mac": "npm run build && electron-builder --mac",
+    "package:linux": "npm run build && electron-builder --linux",
+    "package:all": "npm run build && electron-builder --win --mac --linux"
   },
   "dependencies": {
     "@angular/core": "^19.0.0",
