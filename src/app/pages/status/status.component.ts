@@ -60,7 +60,7 @@ import { OpenclawService, OpenclawStatus } from '../../services/openclaw.service
 
       <div class="raw-output" *ngIf="status?.raw">
         <h2>Raw Output</h2>
-        <pre>{{ status.raw }}</pre>
+        <pre>{{ status?.raw }}</pre>
       </div>
     </div>
   `,
