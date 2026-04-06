@@ -38,7 +38,7 @@ type SetupStep = 'welcome' | 'claude' | 'openclaw' | 'configure' | 'ready';
         <div class="step" *ngIf="currentStep === 'claude'">
           <div class="step-icon">&#9881;</div>
           <h1 class="step-title">Installing AI Engine</h1>
-          <p class="step-desc" *ngIf="claudeStatus === 'installing'">Setting up Claude Code via cc-pika-install...</p>
+          <p class="step-desc" *ngIf="claudeStatus === 'installing'">Downloading and installing Claude Code...</p>
           <p class="step-desc success" *ngIf="claudeStatus === 'done'">Claude Code installed successfully!</p>
           <p class="step-desc error" *ngIf="claudeStatus === 'error'">Installation failed. Check the log below.</p>
           <p class="step-desc" *ngIf="claudeStatus === 'skipped'">Claude Code is already installed!</p>

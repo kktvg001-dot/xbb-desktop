@@ -8,7 +8,6 @@ export interface ToolStatus {
 }
 
 export interface AllToolsStatus {
-  nodejs: ToolStatus;
   claude: ToolStatus;
   openclaw: ToolStatus;
 }
@@ -17,14 +16,12 @@ export interface AllToolsStatus {
 export class InstallerService {
 
   async checkAll(): Promise<AllToolsStatus> {
-    const [nodejs, claude, openclaw] = await Promise.all([
-      (window as any).electronAPI.checkTool('node'),
+    const [claude, openclaw] = await Promise.all([
       (window as any).electronAPI.checkTool('claude'),
       (window as any).electronAPI.checkTool('openclaw'),
     ]);
 
     return {
-      nodejs: { name: 'Node.js', installed: nodejs.installed, version: nodejs.version, installing: false },
       claude: { name: 'Claude Code', installed: claude.installed, version: claude.version, installing: false },
       openclaw: { name: 'OpenClaw', installed: openclaw.installed, version: openclaw.version, installing: false },
     };
