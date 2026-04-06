@@ -153,23 +153,20 @@ ipcMain.handle('install-openclaw', async () => {
       const result = execSync('npm install -g openclaw', {
         encoding: 'utf8',
         timeout: 120000,
-        shell: true,
-        env: { ...process.env, PATH: process.env.PATH },
-      });
+      } as any);
       send('OpenClaw installed!');
       return { success: true, output: result };
     } catch {
-      send('npm not found in system PATH. Trying Electron bundled Node...');
+      send('npm not found in system PATH. Trying alternative...');
     }
 
-    // Fallback: use Electron's own Node.js process to run npm
+    // Fallback: use Electron's own Node.js process
     const result = execSync(`"${process.execPath}" -e "require('child_process').execSync('npm install -g openclaw', {stdio:'inherit'})"`, {
       encoding: 'utf8',
       timeout: 120000,
-      shell: true,
-    });
+    } as any);
     send('OpenClaw installed via bundled Node!');
-    return { success: true, output: result || 'Installed via bundled Node' };
+    return { success: true, output: result || 'Installed' };
   } catch (e: any) {
     return { success: false, output: 'Failed: ' + e.message + '\n\nPlease install Node.js from https://nodejs.org and try again.' };
   }
