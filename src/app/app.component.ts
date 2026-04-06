@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, RouterLink, RouterLinkActive, Router } from '@angular/router';
+import { RouterModule, RouterLink, RouterLinkActive, Router, NavigationEnd } from '@angular/router';
 import { InstallerService } from './services/installer.service';
+import { Subscription, filter } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -9,7 +10,7 @@ import { InstallerService } from './services/installer.service';
   imports: [CommonModule, RouterModule, RouterLink, RouterLinkActive],
   template: `
     <div class="app-layout">
-      <nav class="sidebar">
+      <nav class="sidebar" *ngIf="showSidebar">
         <div class="sidebar-header">
           <div class="logo">
             <span class="logo-icon">&#9672;</span>
@@ -129,13 +130,22 @@ import { InstallerService } from './services/installer.service';
     }
   `],
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
+  showSidebar = true;
+  private routeSub!: Subscription;
+
   constructor(
     private router: Router,
     private installer: InstallerService,
   ) {}
 
   async ngOnInit() {
+    this.routeSub = this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd)
+    ).subscribe((e) => {
+      this.showSidebar = !e.urlAfterRedirects.startsWith('/setup');
+    });
+
     // Auto-redirect: check if tools are installed
     try {
       const tools = await this.installer.checkAll();
@@ -151,5 +161,9 @@ export class AppComponent implements OnInit {
     } catch {
       // If check fails, let default routing handle it
     }
+  }
+
+  ngOnDestroy() {
+    this.routeSub?.unsubscribe();
   }
 }

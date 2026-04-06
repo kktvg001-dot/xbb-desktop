@@ -1,142 +1,120 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { InstallerService, AllToolsStatus, ToolStatus } from '../../services/installer.service';
+import { InstallerService, AllToolsStatus } from '../../services/installer.service';
 
-type SetupStep = 'welcome' | 'nodejs' | 'claude' | 'openclaw' | 'configure' | 'ready';
+type WizardStep = 1 | 2 | 3 | 4;
 
 @Component({
   selector: 'app-setup',
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="setup-page">
-      <div class="setup-card" [class.animate-in]="animateIn">
+    <div class="setup-fullscreen">
+      <!-- Browser mode fallback -->
+      <div class="setup-card" *ngIf="browserMode">
+        <div class="step-icon">&#128187;</div>
+        <h1 class="step-title">Desktop App Required</h1>
+        <p class="step-desc">Running in browser mode. Install features require the desktop app.</p>
+        <p class="step-detail">Download the desktop version to continue setup.</p>
+      </div>
 
-        <!-- Step indicators -->
-        <div class="step-dots">
-          <div class="dot" *ngFor="let s of steps; let i = index"
-               [class.active]="i === currentStepIndex"
-               [class.done]="i < currentStepIndex">
-          </div>
+      <!-- Wizard -->
+      <div class="setup-card" *ngIf="!browserMode" [class.animate-in]="animateIn">
+        <!-- Overall progress header -->
+        <div class="progress-header">
+          <span class="progress-label">Step {{ currentStep }} of 4</span>
+          <span class="progress-pct">{{ overallPercent }}%</span>
+        </div>
+        <div class="overall-progress-bar">
+          <div class="overall-progress-fill" [style.width.%]="overallPercent"></div>
         </div>
 
         <!-- Step 1: Welcome -->
-        <div class="step" *ngIf="currentStep === 'welcome'">
+        <div class="step" *ngIf="currentStep === 1">
           <div class="step-icon">&#127881;</div>
-          <h1 class="step-title">Welcome to OpenClaw Assistant!</h1>
-          <p class="step-desc">Let's get you set up in 2 minutes.</p>
-          <p class="step-detail">We'll install the AI engine and WhatsApp gateway, then you're ready to chat.</p>
-          <div class="step-actions">
+          <h1 class="step-title">Welcome!</h1>
+          <p class="step-desc">Let's set up your AI assistant.</p>
+          <p class="step-detail">This will take about 2 minutes.</p>
+          <div class="step-actions center">
             <button class="btn btn-primary btn-large" (click)="startSetup()">
               Get Started <span class="arrow">&#8594;</span>
             </button>
           </div>
         </div>
 
-        <!-- Step 2: Install Node.js -->
-        <div class="step" *ngIf="currentStep === 'nodejs'">
-          <div class="step-icon">&#128230;</div>
-          <h1 class="step-title">Installing Runtime Engine</h1>
-          <p class="step-desc">Setting up the core runtime...</p>
-          <div class="install-log" *ngIf="nodejsLog">{{ nodejsLog }}</div>
-          <div class="install-status" *ngIf="nodejsStatus === 'installing'">
-            <div class="spinner"></div> Installing Node.js...
-          </div>
-          <div class="install-status success" *ngIf="nodejsStatus === 'done'">✅ Runtime ready!</div>
-          <div class="install-status error" *ngIf="nodejsStatus === 'error'">❌ Installation failed</div>
-          <div class="step-actions">
-            <button class="btn btn-secondary" (click)="goToStep('welcome')" [disabled]="nodejsStatus === 'installing'">← Back</button>
-            <button class="btn btn-primary" *ngIf="nodejsStatus === 'error'" (click)="installNodejs()">Retry</button>
-          </div>
-        </div>
-
-        <!-- Step 3: Install Claude Code -->
-        <div class="step" *ngIf="currentStep === 'claude'">
+        <!-- Step 2: Install AI Engine (Node.js + Claude Code) -->
+        <div class="step" *ngIf="currentStep === 2">
           <div class="step-icon">&#9881;</div>
           <h1 class="step-title">Installing AI Engine</h1>
-          <p class="step-desc" *ngIf="claudeStatus === 'installing'">Downloading and installing Claude Code...</p>
-          <p class="step-desc success" *ngIf="claudeStatus === 'done'">Claude Code installed successfully!</p>
-          <p class="step-desc error" *ngIf="claudeStatus === 'error'">Installation failed. Check the log below.</p>
-          <p class="step-desc" *ngIf="claudeStatus === 'skipped'">Claude Code is already installed!</p>
+          <p class="step-desc">{{ stepActionText }}</p>
 
-          <div class="progress-bar" *ngIf="claudeStatus === 'installing'">
-            <div class="progress-fill" [style.width.%]="claudeProgress"></div>
+          <div class="step-progress-bar" *ngIf="stepStatus === 'installing'">
+            <div class="step-progress-fill" [style.width.%]="stepProgress"></div>
+          </div>
+          <div class="step-progress-text" *ngIf="stepStatus === 'installing'">{{ stepProgress }}%</div>
+
+          <div class="log-box" *ngIf="logOutput" #logBox>
+            <pre>{{ logOutput }}</pre>
           </div>
 
-          <div class="log-output" *ngIf="claudeLog">
-            <pre>{{ claudeLog }}</pre>
+          <div class="status-badge success" *ngIf="stepStatus === 'done'">
+            <span>&#10003;</span> AI Engine ready!
+          </div>
+          <div class="status-badge error" *ngIf="stepStatus === 'error'">
+            <span>&#10007;</span> Installation failed
           </div>
 
-          <div class="tool-version" *ngIf="tools?.claude?.version && (claudeStatus === 'done' || claudeStatus === 'skipped')">
-            <span class="check-mark">&#10003;</span> Claude Code {{ tools?.claude?.version }}
-          </div>
-
-          <div class="step-actions">
-            <button class="btn btn-secondary" (click)="goToStep('welcome')" [disabled]="claudeStatus === 'installing'">
-              <span class="arrow">&#8592;</span> Back
-            </button>
-            <button class="btn btn-primary" *ngIf="claudeStatus === 'error'" (click)="installClaude()">
+          <div class="step-actions center">
+            <button class="btn btn-primary" *ngIf="stepStatus === 'error'" (click)="runStep2()">
               Retry
-            </button>
-            <button class="btn btn-primary" *ngIf="claudeStatus === 'done' || claudeStatus === 'skipped'" (click)="goToOpenclawStep()">
-              Next <span class="arrow">&#8594;</span>
             </button>
           </div>
         </div>
 
         <!-- Step 3: Install OpenClaw -->
-        <div class="step" *ngIf="currentStep === 'openclaw'">
+        <div class="step" *ngIf="currentStep === 3">
           <div class="step-icon">&#128241;</div>
-          <h1 class="step-title">Installing WhatsApp Gateway</h1>
-          <p class="step-desc" *ngIf="openclawStatus === 'installing'">Setting up OpenClaw...</p>
-          <p class="step-desc success" *ngIf="openclawStatus === 'done'">OpenClaw installed successfully!</p>
-          <p class="step-desc error" *ngIf="openclawStatus === 'error'">Installation failed. Check the log below.</p>
-          <p class="step-desc" *ngIf="openclawStatus === 'skipped'">OpenClaw is already installed!</p>
+          <h1 class="step-title">Installing OpenClaw</h1>
+          <p class="step-desc">{{ stepActionText }}</p>
 
-          <div class="progress-bar" *ngIf="openclawStatus === 'installing'">
-            <div class="progress-fill" [style.width.%]="openclawProgress"></div>
+          <div class="step-progress-bar" *ngIf="stepStatus === 'installing'">
+            <div class="step-progress-fill" [style.width.%]="stepProgress"></div>
+          </div>
+          <div class="step-progress-text" *ngIf="stepStatus === 'installing'">{{ stepProgress }}%</div>
+
+          <div class="log-box" *ngIf="logOutput" #logBox>
+            <pre>{{ logOutput }}</pre>
           </div>
 
-          <div class="log-output" *ngIf="openclawLog">
-            <pre>{{ openclawLog }}</pre>
+          <div class="status-badge success" *ngIf="stepStatus === 'done'">
+            <span>&#10003;</span> OpenClaw ready!
+          </div>
+          <div class="status-badge error" *ngIf="stepStatus === 'error'">
+            <span>&#10007;</span> Installation failed
           </div>
 
-          <div class="tool-version" *ngIf="tools?.openclaw?.version && (openclawStatus === 'done' || openclawStatus === 'skipped')">
-            <span class="check-mark">&#10003;</span> OpenClaw {{ tools?.openclaw?.version }}
-          </div>
-
-          <div class="step-actions">
-            <button class="btn btn-secondary" (click)="goToStep('claude')" [disabled]="openclawStatus === 'installing'">
-              <span class="arrow">&#8592;</span> Back
-            </button>
-            <button class="btn btn-primary" *ngIf="openclawStatus === 'error'" (click)="installOpenclaw()">
+          <div class="step-actions center">
+            <button class="btn btn-primary" *ngIf="stepStatus === 'error'" (click)="runStep3()">
               Retry
-            </button>
-            <button class="btn btn-primary" *ngIf="openclawStatus === 'done' || openclawStatus === 'skipped'" (click)="goToStep('configure')">
-              Next <span class="arrow">&#8594;</span>
             </button>
           </div>
         </div>
 
-        <!-- Step 4: Configure -->
-        <div class="step" *ngIf="currentStep === 'configure'">
-          <div class="step-icon">&#128295;</div>
-          <h1 class="step-title">Almost Done!</h1>
-          <p class="step-desc">Let's verify your installation.</p>
+        <!-- Step 4: Ready -->
+        <div class="step" *ngIf="currentStep === 4">
+          <div class="step-icon large">&#127881;</div>
+          <h1 class="step-title">You're All Set!</h1>
+          <p class="step-desc">Your AI assistant is ready to help.</p>
 
           <div class="config-list">
-            <div class="config-item">
-              <span class="config-label">Workspace</span>
-              <span class="config-value">~/.openclaw/</span>
-            </div>
             <div class="config-item" *ngIf="tools?.claude">
               <span class="config-label">
                 <span class="check-mark" *ngIf="tools?.claude?.installed">&#10003;</span>
                 <span class="x-mark" *ngIf="!tools?.claude?.installed">&#10007;</span>
                 Claude Code
               </span>
-              <span class="config-value">{{ tools?.claude?.version || 'not found' }}</span>
+              <span class="config-value">{{ tools?.claude?.version || 'n/a' }}</span>
             </div>
             <div class="config-item" *ngIf="tools?.openclaw">
               <span class="config-label">
@@ -144,28 +122,10 @@ type SetupStep = 'welcome' | 'nodejs' | 'claude' | 'openclaw' | 'configure' | 'r
                 <span class="x-mark" *ngIf="!tools?.openclaw?.installed">&#10007;</span>
                 OpenClaw
               </span>
-              <span class="config-value">{{ tools?.openclaw?.version || 'not found' }}</span>
+              <span class="config-value">{{ tools?.openclaw?.version || 'n/a' }}</span>
             </div>
           </div>
 
-          <div class="step-actions">
-            <button class="btn btn-secondary" (click)="goToStep('openclaw')">
-              <span class="arrow">&#8592;</span> Back
-            </button>
-            <button class="btn btn-secondary" (click)="recheckTools()">
-              Re-check
-            </button>
-            <button class="btn btn-primary" (click)="goToStep('ready')">
-              Next <span class="arrow">&#8594;</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Step 5: Ready -->
-        <div class="step" *ngIf="currentStep === 'ready'">
-          <div class="step-icon large">&#127881;</div>
-          <h1 class="step-title">You're All Set!</h1>
-          <p class="step-desc">Your AI assistant is ready to help.</p>
           <div class="step-actions center">
             <button class="btn btn-success btn-large" (click)="startChatting()">
               Start Chatting <span class="arrow">&#8594;</span>
@@ -178,19 +138,20 @@ type SetupStep = 'welcome' | 'nodejs' | 'claude' | 'openclaw' | 'configure' | 'r
     </div>
   `,
   styles: [`
-    .setup-page {
+    .setup-fullscreen {
       display: flex;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
+      width: 100%;
       padding: 24px;
       background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f0 100%);
     }
     .setup-card {
       background: #fff;
       border-radius: 16px;
-      padding: 48px 40px 40px;
-      max-width: 560px;
+      padding: 40px 40px 36px;
+      max-width: 580px;
       width: 100%;
       box-shadow: 0 4px 24px rgba(0,0,0,0.08);
       transition: opacity 0.3s ease, transform 0.3s ease;
@@ -203,27 +164,37 @@ type SetupStep = 'welcome' | 'nodejs' | 'claude' | 'openclaw' | 'configure' | 'r
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Step dots */
-    .step-dots {
+    /* Overall progress header */
+    .progress-header {
       display: flex;
-      justify-content: center;
-      gap: 8px;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .progress-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .progress-pct {
+      font-size: 13px;
+      font-weight: 600;
+      color: #00a884;
+    }
+    .overall-progress-bar {
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
       margin-bottom: 32px;
     }
-    .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: #e0e0e0;
-      transition: all 0.3s ease;
-    }
-    .dot.active {
-      background: #00a884;
-      transform: scale(1.2);
-    }
-    .dot.done {
-      background: #00a884;
-      opacity: 0.5;
+    .overall-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00a884, #00c49a);
+      border-radius: 4px;
+      transition: width 0.5s ease;
     }
 
     /* Step content */
@@ -232,7 +203,7 @@ type SetupStep = 'welcome' | 'nodejs' | 'claude' | 'openclaw' | 'configure' | 'r
     }
     .step-icon {
       font-size: 48px;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
       line-height: 1;
     }
     .step-icon.large {
@@ -249,75 +220,75 @@ type SetupStep = 'welcome' | 'nodejs' | 'claude' | 'openclaw' | 'configure' | 'r
       margin: 0 0 8px;
       font-size: 15px;
     }
-    .step-desc.success {
-      color: #2e7d32;
-    }
-    .step-desc.error {
-      color: #d32f2f;
-    }
     .step-detail {
       color: #999;
       font-size: 13px;
-      margin: 0 0 32px;
+      margin: 0 0 28px;
     }
 
-    /* Progress bar */
-    .progress-bar {
-      height: 6px;
+    /* Per-step progress bar */
+    .step-progress-bar {
+      height: 10px;
       background: #e0e0e0;
-      border-radius: 3px;
-      margin: 20px 0;
+      border-radius: 5px;
+      margin: 20px 0 6px;
       overflow: hidden;
     }
-    .progress-fill {
+    .step-progress-fill {
       height: 100%;
-      background: #00a884;
-      border-radius: 3px;
+      background: linear-gradient(90deg, #00a884, #00c49a);
+      border-radius: 5px;
       transition: width 0.4s ease;
+    }
+    .step-progress-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: #00a884;
+      text-align: right;
+      margin-bottom: 12px;
     }
 
     /* Log output */
-    .log-output {
+    .log-box {
       background: #1a1a2e;
       border-radius: 8px;
-      padding: 16px;
+      padding: 14px 16px;
       margin: 16px 0;
-      max-height: 160px;
+      max-height: 200px;
       overflow-y: auto;
       text-align: left;
     }
-    .log-output pre {
+    .log-box pre {
       margin: 0;
       font-size: 12px;
       color: #a0e0c0;
-      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
       white-space: pre-wrap;
       word-break: break-all;
+      line-height: 1.5;
     }
 
-    /* Tool version badge */
-    .tool-version {
+    /* Status badges */
+    .status-badge {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 16px;
-      background: #e8f5e9;
+      padding: 10px 20px;
       border-radius: 8px;
-      color: #2e7d32;
       font-size: 14px;
       font-weight: 600;
       margin: 16px 0;
     }
-    .check-mark {
+    .status-badge.success {
+      background: #e8f5e9;
       color: #2e7d32;
-      font-weight: 700;
     }
-    .x-mark {
+    .status-badge.error {
+      background: #fbe9e7;
       color: #d32f2f;
-      font-weight: 700;
     }
 
-    /* Config list */
+    /* Config list (ready step) */
     .config-list {
       text-align: left;
       margin: 24px 0;
@@ -344,15 +315,17 @@ type SetupStep = 'welcome' | 'nodejs' | 'claude' | 'openclaw' | 'configure' | 'r
     .config-value {
       font-size: 13px;
       color: #666;
-      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
     }
+    .check-mark { color: #2e7d32; font-weight: 700; }
+    .x-mark { color: #d32f2f; font-weight: 700; }
 
     /* Actions */
     .step-actions {
       display: flex;
       justify-content: center;
       gap: 12px;
-      margin-top: 28px;
+      margin-top: 24px;
     }
     .step-actions.center {
       justify-content: center;
@@ -381,10 +354,6 @@ type SetupStep = 'welcome' | 'nodejs' | 'claude' | 'openclaw' | 'configure' | 'r
       background: #00a884;
       color: #fff;
     }
-    .btn-secondary {
-      background: #e0e0e0;
-      color: #333;
-    }
     .btn-success {
       background: #00a884;
       color: #fff;
@@ -402,42 +371,27 @@ type SetupStep = 'welcome' | 'nodejs' | 'claude' | 'openclaw' | 'configure' | 'r
       margin-top: 16px;
       text-align: center;
     }
-    .spinner {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid #ef6c00;
-      border-top-color: transparent;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
   `],
 })
 export class SetupComponent implements OnInit, OnDestroy {
-  steps: SetupStep[] = ['welcome', 'nodejs', 'claude', 'openclaw', 'configure', 'ready'];
-  currentStep: SetupStep = 'welcome';
-  currentStepIndex = 0;
+  currentStep: WizardStep = 1;
   animateIn = true;
+  browserMode = false;
 
   tools: AllToolsStatus | null = null;
   errorMessage = '';
 
-  // Node.js install state
-  nodejsStatus: 'pending' | 'installing' | 'done' | 'skipped' | 'error' = 'pending';
-  nodejsLog = '';
+  // Per-step state
+  stepStatus: 'idle' | 'installing' | 'done' | 'error' = 'idle';
+  stepProgress = 0;
+  stepActionText = '';
+  logOutput = '';
 
-  // Claude install state
-  claudeStatus: 'pending' | 'installing' | 'done' | 'skipped' | 'error' = 'pending';
-  claudeProgress = 0;
-  claudeLog = '';
+  @ViewChild('logBox') logBox?: ElementRef;
 
-  // OpenClaw install state
-  openclawStatus: 'pending' | 'installing' | 'done' | 'skipped' | 'error' = 'pending';
-  openclawProgress = 0;
-  openclawLog = '';
+  get overallPercent(): number {
+    return Math.round(((this.currentStep - 1) / 4) * 100);
+  }
 
   constructor(
     private installer: InstallerService,
@@ -445,19 +399,26 @@ export class SetupComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
+    if (!this.installer.isElectron) {
+      this.browserMode = true;
+      this.errorMessage = 'Running in browser mode. Install features require the desktop app.';
+      return;
+    }
     this.checkTools();
     this.installer.onInstallProgress((data: any) => {
-      if (data.tool === 'nodejs') {
-        this.nodejsLog += data.output;
-      }
-      if (data.tool === 'claude') {
-        this.claudeLog += data.output;
-        this.claudeProgress = Math.min(this.claudeProgress + 8, 90);
+      if (data.tool === 'nodejs' || data.tool === 'claude') {
+        this.logOutput += data.output;
+        if (data.tool === 'nodejs') {
+          this.stepProgress = Math.min(this.stepProgress + 5, 45);
+        } else {
+          this.stepProgress = Math.min(this.stepProgress + 8, 90);
+        }
       }
       if (data.tool === 'openclaw') {
-        this.openclawLog += data.output;
-        this.openclawProgress = Math.min(this.openclawProgress + 10, 90);
+        this.logOutput += data.output;
+        this.stepProgress = Math.min(this.stepProgress + 10, 90);
       }
+      this.scrollLogToBottom();
     });
   }
 
@@ -473,122 +434,131 @@ export class SetupComponent implements OnInit, OnDestroy {
     }
   }
 
-  async recheckTools() {
-    this.errorMessage = '';
-    await this.checkTools();
-  }
-
-  goToStep(step: SetupStep) {
+  private goToStep(step: WizardStep) {
     this.animateIn = false;
     setTimeout(() => {
       this.currentStep = step;
-      this.currentStepIndex = this.steps.indexOf(step);
+      this.stepStatus = 'idle';
+      this.stepProgress = 0;
+      this.stepActionText = '';
+      this.logOutput = '';
+      this.errorMessage = '';
       this.animateIn = true;
+    }, 50);
+  }
+
+  private scrollLogToBottom() {
+    setTimeout(() => {
+      if (this.logBox?.nativeElement) {
+        this.logBox.nativeElement.scrollTop = this.logBox.nativeElement.scrollHeight;
+      }
     }, 50);
   }
 
   async startSetup() {
     await this.checkTools();
+    this.goToStep(2);
+    setTimeout(() => this.runStep2(), 200);
+  }
 
-    // Step 1: Node.js
-    this.goToStep('nodejs');
-    setTimeout(() => {
+  async runStep2() {
+    this.stepStatus = 'installing';
+    this.stepProgress = 0;
+    this.logOutput = '';
+    this.errorMessage = '';
+
+    try {
+      // Phase 1: Node.js
       if (this.tools?.nodejs?.installed) {
-        this.nodejsStatus = 'done';
-        this.nodejsLog = '✅ Node.js already installed: ' + this.tools.nodejs.version;
-        // Auto-advance to Claude after 1s
-        setTimeout(() => this.startClaudeStep(), 1000);
+        this.stepActionText = 'Node.js already installed.';
+        this.logOutput += 'Node.js ' + (this.tools.nodejs.version || '') + ' found.\n';
+        this.stepProgress = 45;
       } else {
-        this.installNodejs();
+        this.stepActionText = 'Downloading Node.js...';
+        const nodeResult = await this.installer.installNodejs();
+        if (!nodeResult.success) {
+          this.stepStatus = 'error';
+          this.stepActionText = 'Node.js installation failed.';
+          this.logOutput += '\n' + (nodeResult.output || 'Unknown error');
+          return;
+        }
+        this.stepProgress = 45;
+        this.logOutput += '\nNode.js installed successfully.\n';
       }
-    }, 200);
-  }
 
-  async installNodejs() {
-    this.nodejsStatus = 'installing';
-    this.nodejsLog = '';
-    try {
-      const result = await this.installer.installNodejs();
-      if (result.success) {
-        this.nodejsStatus = 'done';
-        // Auto-advance to Claude after 1s
-        setTimeout(() => this.startClaudeStep(), 1000);
-      } else {
-        this.nodejsStatus = 'error';
-        this.nodejsLog += '\n' + (result.output || 'Unknown error');
-      }
-    } catch (e: any) {
-      this.nodejsStatus = 'error';
-      this.nodejsLog = 'Error: ' + e.message;
-    }
-  }
-
-  startClaudeStep() {
-    this.goToStep('claude');
-    setTimeout(() => {
+      // Phase 2: Claude Code
       if (this.tools?.claude?.installed) {
-        this.claudeStatus = 'skipped';
+        this.stepActionText = 'Claude Code already installed.';
+        this.logOutput += 'Claude Code ' + (this.tools.claude.version || '') + ' found.\n';
+        this.stepProgress = 100;
+        this.stepStatus = 'done';
       } else {
-        this.installClaude();
+        this.stepActionText = 'Installing Claude Code...';
+        const claudeResult = await this.installer.installClaude();
+        if (!claudeResult.success) {
+          this.stepStatus = 'error';
+          this.stepActionText = 'Claude Code installation failed.';
+          this.logOutput += '\n' + (claudeResult.output || 'Unknown error');
+          return;
+        }
+        this.stepProgress = 100;
+        this.stepStatus = 'done';
+        this.logOutput += '\nClaude Code installed successfully.\n';
       }
-    }, 200);
-  }
 
-  async installClaude() {
-    this.claudeStatus = 'installing';
-    this.claudeProgress = 10;
-    this.claudeLog = '';
-    this.errorMessage = '';
+      this.stepActionText = 'AI Engine is ready!';
+      await this.checkTools();
 
-    try {
-      const result = await this.installer.installClaude();
-      if (result.success) {
-        this.claudeProgress = 100;
-        this.claudeStatus = 'done';
-        // Re-check to get version
-        await this.checkTools();
-      } else {
-        this.claudeStatus = 'error';
-        this.claudeLog += '\n' + (result.output || 'Unknown error');
-      }
+      // Auto-advance after 1.5s
+      setTimeout(() => {
+        this.goToStep(3);
+        setTimeout(() => this.runStep3(), 200);
+      }, 1500);
+
     } catch (e: any) {
-      this.claudeStatus = 'error';
-      this.errorMessage = 'Install failed: ' + e.message;
+      this.stepStatus = 'error';
+      this.stepActionText = 'Installation failed.';
+      this.errorMessage = e.message;
     }
   }
 
-  async installOpenclaw() {
-    this.openclawStatus = 'installing';
-    this.openclawProgress = 10;
-    this.openclawLog = '';
+  async runStep3() {
+    this.stepStatus = 'installing';
+    this.stepProgress = 0;
+    this.logOutput = '';
     this.errorMessage = '';
 
     try {
-      const result = await this.installer.installOpenclaw();
-      if (result.success) {
-        this.openclawProgress = 100;
-        this.openclawStatus = 'done';
-        await this.checkTools();
-      } else {
-        this.openclawStatus = 'error';
-        this.openclawLog += '\n' + (result.output || 'Unknown error');
-      }
-    } catch (e: any) {
-      this.openclawStatus = 'error';
-      this.errorMessage = 'Install failed: ' + e.message;
-    }
-  }
-
-  // Called when navigating to openclaw step
-  goToOpenclawStep() {
-    this.goToStep('openclaw');
-    setTimeout(() => {
       if (this.tools?.openclaw?.installed) {
-        this.openclawStatus = 'skipped';
+        this.stepActionText = 'OpenClaw already installed.';
+        this.logOutput += 'OpenClaw ' + (this.tools.openclaw.version || '') + ' found.\n';
+        this.stepProgress = 100;
+        this.stepStatus = 'done';
       } else {
-        this.installOpenclaw();
+        this.stepActionText = 'Setting up OpenClaw...';
+        const result = await this.installer.installOpenclaw();
+        if (!result.success) {
+          this.stepStatus = 'error';
+          this.stepActionText = 'OpenClaw installation failed.';
+          this.logOutput += '\n' + (result.output || 'Unknown error');
+          return;
+        }
+        this.stepProgress = 100;
+        this.stepStatus = 'done';
+        this.logOutput += '\nOpenClaw installed successfully.\n';
       }
-    }, 200);
+
+      this.stepActionText = 'OpenClaw is ready!';
+      await this.checkTools();
+
+      // Auto-advance after 1.5s
+      setTimeout(() => this.goToStep(4), 1500);
+
+    } catch (e: any) {
+      this.stepStatus = 'error';
+      this.stepActionText = 'Installation failed.';
+      this.errorMessage = e.message;
+    }
   }
 
   startChatting() {

@@ -16,11 +16,22 @@ export interface AllToolsStatus {
 @Injectable({ providedIn: 'root' })
 export class InstallerService {
 
+  private get api(): any {
+    return (window as any).electronAPI;
+  }
+
+  get isElectron(): boolean {
+    return !!(window as any).electronAPI;
+  }
+
   async checkAll(): Promise<AllToolsStatus> {
+    if (!this.isElectron) {
+      throw new Error('electronAPI not available');
+    }
     const [nodejs, claude, openclaw] = await Promise.all([
-      (window as any).electronAPI.checkTool('node'),
-      (window as any).electronAPI.checkTool('claude'),
-      (window as any).electronAPI.checkTool('openclaw'),
+      this.api.checkTool('node'),
+      this.api.checkTool('claude'),
+      this.api.checkTool('openclaw'),
     ]);
 
     return {
@@ -31,22 +42,27 @@ export class InstallerService {
   }
 
   async installNodejs(): Promise<{ success: boolean; output?: string }> {
-    return (window as any).electronAPI.installNodejs();
+    if (!this.isElectron) { throw new Error('electronAPI not available'); }
+    return this.api.installNodejs();
   }
 
   async installClaude(): Promise<{ success: boolean; output?: string }> {
-    return (window as any).electronAPI.installClaude();
+    if (!this.isElectron) { throw new Error('electronAPI not available'); }
+    return this.api.installClaude();
   }
 
   async installOpenclaw(): Promise<{ success: boolean; output?: string }> {
-    return (window as any).electronAPI.installOpenclaw();
+    if (!this.isElectron) { throw new Error('electronAPI not available'); }
+    return this.api.installOpenclaw();
   }
 
   onInstallProgress(callback: (data: any) => void): void {
-    (window as any).electronAPI.onInstallProgress(callback);
+    if (!this.isElectron) { return; }
+    this.api.onInstallProgress(callback);
   }
 
   removeInstallProgressListeners(): void {
-    (window as any).electronAPI.removeInstallProgressListeners();
+    if (!this.isElectron) { return; }
+    this.api.removeInstallProgressListeners();
   }
 }
