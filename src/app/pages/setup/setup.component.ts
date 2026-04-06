@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { InstallerService, AllToolsStatus, ToolStatus } from '../../services/installer.service';
 
-type SetupStep = 'welcome' | 'claude' | 'openclaw' | 'configure' | 'ready';
+type SetupStep = 'welcome' | 'nodejs' | 'claude' | 'openclaw' | 'configure' | 'ready';
 
 @Component({
   selector: 'app-setup',
@@ -34,7 +34,24 @@ type SetupStep = 'welcome' | 'claude' | 'openclaw' | 'configure' | 'ready';
           </div>
         </div>
 
-        <!-- Step 2: Install Claude Code -->
+        <!-- Step 2: Install Node.js -->
+        <div class="step" *ngIf="currentStep === 'nodejs'">
+          <div class="step-icon">&#128230;</div>
+          <h1 class="step-title">Installing Runtime Engine</h1>
+          <p class="step-desc">Setting up the core runtime...</p>
+          <div class="install-log" *ngIf="nodejsLog">{{ nodejsLog }}</div>
+          <div class="install-status" *ngIf="nodejsStatus === 'installing'">
+            <div class="spinner"></div> Installing Node.js...
+          </div>
+          <div class="install-status success" *ngIf="nodejsStatus === 'done'">✅ Runtime ready!</div>
+          <div class="install-status error" *ngIf="nodejsStatus === 'error'">❌ Installation failed</div>
+          <div class="step-actions">
+            <button class="btn btn-secondary" (click)="goToStep('welcome')" [disabled]="nodejsStatus === 'installing'">← Back</button>
+            <button class="btn btn-primary" *ngIf="nodejsStatus === 'error'" (click)="installNodejs()">Retry</button>
+          </div>
+        </div>
+
+        <!-- Step 3: Install Claude Code -->
         <div class="step" *ngIf="currentStep === 'claude'">
           <div class="step-icon">&#9881;</div>
           <h1 class="step-title">Installing AI Engine</h1>
@@ -400,13 +417,17 @@ type SetupStep = 'welcome' | 'claude' | 'openclaw' | 'configure' | 'ready';
   `],
 })
 export class SetupComponent implements OnInit, OnDestroy {
-  steps: SetupStep[] = ['welcome', 'claude', 'openclaw', 'configure', 'ready'];
+  steps: SetupStep[] = ['welcome', 'nodejs', 'claude', 'openclaw', 'configure', 'ready'];
   currentStep: SetupStep = 'welcome';
   currentStepIndex = 0;
   animateIn = true;
 
   tools: AllToolsStatus | null = null;
   errorMessage = '';
+
+  // Node.js install state
+  nodejsStatus: 'pending' | 'installing' | 'done' | 'skipped' | 'error' = 'pending';
+  nodejsLog = '';
 
   // Claude install state
   claudeStatus: 'pending' | 'installing' | 'done' | 'skipped' | 'error' = 'pending';
@@ -426,6 +447,9 @@ export class SetupComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.checkTools();
     this.installer.onInstallProgress((data: any) => {
+      if (data.tool === 'nodejs') {
+        this.nodejsLog += data.output;
+      }
       if (data.tool === 'claude') {
         this.claudeLog += data.output;
         this.claudeProgress = Math.min(this.claudeProgress + 8, 90);
@@ -464,13 +488,43 @@ export class SetupComponent implements OnInit, OnDestroy {
   }
 
   async startSetup() {
-    // Check tools first
     await this.checkTools();
 
-    // Go to Claude step
-    this.goToStep('claude');
+    // Step 1: Node.js
+    this.goToStep('nodejs');
+    setTimeout(() => {
+      if (this.tools?.nodejs?.installed) {
+        this.nodejsStatus = 'done';
+        this.nodejsLog = '✅ Node.js already installed: ' + this.tools.nodejs.version;
+        // Auto-advance to Claude after 1s
+        setTimeout(() => this.startClaudeStep(), 1000);
+      } else {
+        this.installNodejs();
+      }
+    }, 200);
+  }
 
-    // Auto-start install if not already installed
+  async installNodejs() {
+    this.nodejsStatus = 'installing';
+    this.nodejsLog = '';
+    try {
+      const result = await this.installer.installNodejs();
+      if (result.success) {
+        this.nodejsStatus = 'done';
+        // Auto-advance to Claude after 1s
+        setTimeout(() => this.startClaudeStep(), 1000);
+      } else {
+        this.nodejsStatus = 'error';
+        this.nodejsLog += '\n' + (result.output || 'Unknown error');
+      }
+    } catch (e: any) {
+      this.nodejsStatus = 'error';
+      this.nodejsLog = 'Error: ' + e.message;
+    }
+  }
+
+  startClaudeStep() {
+    this.goToStep('claude');
     setTimeout(() => {
       if (this.tools?.claude?.installed) {
         this.claudeStatus = 'skipped';

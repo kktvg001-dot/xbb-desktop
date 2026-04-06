@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
-import { spawn, execSync } from 'child_process';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { spawn, execSync, exec } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import * as https from 'https';
 
 // Customer config — edit these values per deployment
 const CONFIG = {
@@ -40,24 +41,59 @@ app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) creat
 
 // ============ HELPERS ============
 
-// Get the correct home directory (even when running as sudo)
 function getHomeDir(): string {
   return process.env.SUDO_USER
     ? path.join('/home', process.env.SUDO_USER)
     : os.homedir();
 }
 
+function sendProgress(tool: string, msg: string) {
+  mainWindow?.webContents.send('install-progress', { tool, output: msg + '\n' });
+}
+
+// Check if a command exists in system PATH
+function commandExists(cmd: string): boolean {
+  try {
+    if (process.platform === 'win32') {
+      execSync(`where ${cmd}`, { encoding: 'utf8', timeout: 5000, stdio: 'pipe' });
+    } else {
+      execSync(`which ${cmd}`, { encoding: 'utf8', timeout: 5000, stdio: 'pipe' });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Find claude binary (checks PATH + common locations)
+function findClaudeBinary(): string | null {
+  if (commandExists('claude')) return 'claude';
+  const locations = process.platform === 'win32'
+    ? [
+        path.join(getHomeDir(), '.claude', 'local', 'claude.exe'),
+        path.join(getHomeDir(), 'AppData', 'Local', 'Programs', 'claude-code', 'claude.exe'),
+        path.join(getHomeDir(), '.local', 'bin', 'claude.exe'),
+      ]
+    : [
+        path.join(getHomeDir(), '.claude', 'local', 'claude'),
+        path.join(getHomeDir(), '.local', 'bin', 'claude'),
+        '/usr/local/bin/claude',
+      ];
+  for (const loc of locations) {
+    if (fs.existsSync(loc)) return loc;
+  }
+  return null;
+}
+
 // Write Claude Code settings — matches cc-pika-install format exactly
-function configureClaudeSettings(apiBaseUrl: string, apiKey: string) {
+function configureClaudeSettings() {
   const claudeDir = path.join(getHomeDir(), '.claude');
   if (!fs.existsSync(claudeDir)) fs.mkdirSync(claudeDir, { recursive: true });
 
-  const settingsPath = path.join(claudeDir, 'settings.json');
-
   const settings = {
     env: {
-      ANTHROPIC_BASE_URL: apiBaseUrl,
-      ANTHROPIC_AUTH_TOKEN: apiKey,
+      ANTHROPIC_BASE_URL: CONFIG.apiBaseUrl,
+      ANTHROPIC_AUTH_TOKEN: CONFIG.apiKey,
     },
     permissions: {
       allow: ['Bash(env:*)'],
@@ -69,219 +105,227 @@ function configureClaudeSettings(apiBaseUrl: string, apiKey: string) {
     hasAcknowledgedDisclaimer: true,
   };
 
-  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+  fs.writeFileSync(path.join(claudeDir, 'settings.json'), JSON.stringify(settings, null, 2));
 }
 
-// Find claude binary path
-function findClaudeBinary(): string | null {
-  try {
-    if (process.platform === 'win32') {
-      return execSync('where claude', { encoding: 'utf8', timeout: 5000 }).trim().split('\n')[0];
-    } else {
-      return execSync('which claude', { encoding: 'utf8', timeout: 5000 }).trim();
-    }
-  } catch {
-    // Check common install locations
-    const locations = process.platform === 'win32'
-      ? [
-          path.join(getHomeDir(), '.claude', 'local', 'claude.exe'),
-          path.join(getHomeDir(), 'AppData', 'Local', 'Programs', 'claude-code', 'claude.exe'),
-          path.join(getHomeDir(), '.local', 'bin', 'claude.exe'),
-        ]
-      : [
-          path.join(getHomeDir(), '.claude', 'local', 'claude'),
-          path.join(getHomeDir(), '.local', 'bin', 'claude'),
-          '/usr/local/bin/claude',
-        ];
-
-    for (const loc of locations) {
-      if (fs.existsSync(loc)) return loc;
-    }
-    return null;
-  }
+// Download a file to a local path
+function downloadFile(url: string, dest: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(dest);
+    https.get(url, (response) => {
+      // Handle redirects
+      if (response.statusCode === 302 || response.statusCode === 301) {
+        file.close();
+        fs.unlinkSync(dest);
+        downloadFile(response.headers.location!, dest).then(resolve).catch(reject);
+        return;
+      }
+      response.pipe(file);
+      file.on('finish', () => { file.close(); resolve(); });
+    }).on('error', (err) => { fs.unlinkSync(dest); reject(err); });
+  });
 }
 
-// ============ IPC HANDLERS ============
+// ============ IPC: CHECK TOOLS ============
 
-// Check if a CLI tool is installed
 ipcMain.handle('check-tool', async (_, tool: string) => {
   try {
     if (tool === 'claude') {
       const bin = findClaudeBinary();
-      if (bin) {
-        const version = execSync(`"${bin}" --version 2>&1`, { encoding: 'utf8', timeout: 10000 });
-        return { installed: true, version: version.trim().split('\n')[0] };
-      }
-      return { installed: false, version: null };
+      if (!bin) return { installed: false, version: null };
+      const version = execSync(`"${bin}" --version 2>&1`, { encoding: 'utf8', timeout: 10000 });
+      return { installed: true, version: version.trim().split('\n')[0] };
     }
-    const version = execSync(`${tool} --version 2>&1`, { encoding: 'utf8', timeout: 10000 });
-    return { installed: true, version: version.trim().split('\n')[0] };
+    if (tool === 'node') {
+      const version = execSync('node --version 2>&1', { encoding: 'utf8', timeout: 5000 });
+      return { installed: true, version: version.trim() };
+    }
+    if (tool === 'openclaw') {
+      const version = execSync('openclaw --version 2>&1', { encoding: 'utf8', timeout: 10000 });
+      return { installed: true, version: version.trim().split('\n')[0] };
+    }
+    return { installed: false, version: null };
   } catch {
     return { installed: false, version: null };
   }
 });
 
-// Install Claude Code — native binary (no Node.js/npm needed)
-ipcMain.handle('install-claude', async (event, apiBaseUrl: string, apiKey: string) => {
-  const send = (msg: string) => mainWindow?.webContents.send('install-progress', { tool: 'claude', output: msg + '\n' });
+// ============ IPC: INSTALL NODE.JS ============
+// Node.js is required for OpenClaw. Install it silently if missing.
+
+ipcMain.handle('install-nodejs', async () => {
+  const send = (msg: string) => sendProgress('nodejs', msg);
 
   try {
-    // Step 1: Check if already installed
+    // Check if already installed
+    if (commandExists('node')) {
+      const version = execSync('node --version', { encoding: 'utf8', timeout: 5000 }).trim();
+      send('✅ Node.js already installed: ' + version);
+      return { success: true, output: version };
+    }
+
+    send('📦 Installing Node.js...');
+    const tmpDir = os.tmpdir();
+
+    if (process.platform === 'win32') {
+      // Windows: download Node.js MSI and install silently
+      send('Downloading Node.js for Windows...');
+      const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+      const msiUrl = `https://nodejs.org/dist/v22.12.0/node-v22.12.0-${arch}.msi`;
+      const msiPath = path.join(tmpDir, 'node-installer.msi');
+
+      await downloadFile(msiUrl, msiPath);
+      send('Downloaded. Installing silently (this may take a minute)...');
+
+      execSync(`msiexec /i "${msiPath}" /quiet /norestart`, {
+        timeout: 300000,
+        stdio: 'pipe',
+      } as any);
+
+      // Clean up
+      try { fs.unlinkSync(msiPath); } catch {}
+      send('✅ Node.js installed! You may need to restart the app.');
+
+    } else if (process.platform === 'darwin') {
+      // Mac: download Node.js PKG and install
+      send('Downloading Node.js for macOS...');
+      const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+      const pkgUrl = `https://nodejs.org/dist/v22.12.0/node-v22.12.0-${arch}.pkg`;
+      const pkgPath = path.join(tmpDir, 'node-installer.pkg');
+
+      await downloadFile(pkgUrl, pkgPath);
+      send('Downloaded. Installing (may ask for your password)...');
+
+      execSync(`sudo installer -pkg "${pkgPath}" -target /`, {
+        timeout: 300000,
+        stdio: 'pipe',
+      } as any);
+
+      try { fs.unlinkSync(pkgPath); } catch {}
+      send('✅ Node.js installed!');
+
+    } else {
+      // Linux
+      send('Downloading Node.js for Linux...');
+      execSync('curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get install -y nodejs', {
+        encoding: 'utf8',
+        timeout: 300000,
+        shell: '/bin/bash',
+      } as any);
+      send('✅ Node.js installed!');
+    }
+
+    return { success: true, output: 'Installed' };
+  } catch (e: any) {
+    send('❌ Failed to install Node.js: ' + e.message);
+    return { success: false, output: e.message };
+  }
+});
+
+// ============ IPC: INSTALL CLAUDE CODE ============
+// Uses native installer (no Node.js required)
+
+ipcMain.handle('install-claude', async () => {
+  const send = (msg: string) => sendProgress('claude', msg);
+
+  try {
+    // Check if already installed
     const existingBin = findClaudeBinary();
     if (existingBin) {
       try {
         const version = execSync(`"${existingBin}" --version`, { encoding: 'utf8', timeout: 10000 });
-        send('Claude Code already installed: ' + version.trim());
+        send('✅ Claude Code already installed: ' + version.trim());
       } catch {
-        send('Claude Code binary found at: ' + existingBin);
+        send('✅ Claude Code found at: ' + existingBin);
       }
-      configureClaudeSettings(apiBaseUrl, apiKey);
-      send('✅ Configuration updated with your API settings.');
-      return { success: true, output: 'Already installed and configured' };
+      configureClaudeSettings();
+      send('⚙️ API configuration updated.');
+      return { success: true, output: 'Already installed' };
     }
 
-    // Step 2: Download and install native binary
     send('📦 Downloading Claude Code...');
 
     if (process.platform === 'win32') {
-      // Windows: use PowerShell to download and run installer
-      send('Downloading installer for Windows...');
-      try {
-        execSync(
-          'powershell -ExecutionPolicy Bypass -Command "& { Invoke-WebRequest -Uri \'https://claude.ai/install.ps1\' -OutFile \'$env:TEMP\\claude-install.ps1\'; & \'$env:TEMP\\claude-install.ps1\' }"',
-          { encoding: 'utf8', timeout: 180000 } as any
-        );
-      } catch {
-        // Fallback: try direct download of the binary
-        send('PowerShell installer failed. Trying direct download...');
-        const downloadDir = path.join(getHomeDir(), '.claude', 'downloads');
-        if (!fs.existsSync(downloadDir)) fs.mkdirSync(downloadDir, { recursive: true });
-        execSync(
-          `powershell -Command "Invoke-WebRequest -Uri 'https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest/win32-x64/claude' -OutFile '${path.join(downloadDir, 'claude.exe')}';"`,
-          { encoding: 'utf8', timeout: 180000 } as any
-        );
-        // Make accessible
-        const localBin = path.join(getHomeDir(), '.local', 'bin');
-        if (!fs.existsSync(localBin)) fs.mkdirSync(localBin, { recursive: true });
-        fs.copyFileSync(path.join(downloadDir, 'claude.exe'), path.join(localBin, 'claude.exe'));
-      }
-    } else if (process.platform === 'darwin') {
-      // Mac: use native installer
-      send('Downloading installer for macOS...');
-      execSync('curl -fsSL https://claude.ai/install.sh | sh', {
-        encoding: 'utf8',
-        timeout: 180000,
-        shell: '/bin/bash',
-      } as any);
+      // Windows: download native binary via PowerShell
+      send('Downloading for Windows...');
+      execSync(
+        'powershell -ExecutionPolicy Bypass -Command "& { $script = Invoke-WebRequest -Uri \'https://claude.ai/install.ps1\' -UseBasicParsing; Invoke-Expression $script.Content }"',
+        { timeout: 180000, stdio: 'pipe' } as any
+      );
     } else {
-      // Linux: use native installer
-      send('Downloading installer for Linux...');
+      // Mac/Linux: native install script
+      send('Downloading for ' + (process.platform === 'darwin' ? 'macOS' : 'Linux') + '...');
       execSync('curl -fsSL https://claude.ai/install.sh | sh', {
-        encoding: 'utf8',
         timeout: 180000,
         shell: '/bin/bash',
+        stdio: 'pipe',
       } as any);
     }
 
     send('✅ Claude Code installed!');
 
-    // Step 3: Configure settings.json
+    // Configure API settings
     send('⚙️ Configuring API settings...');
-    configureClaudeSettings(apiBaseUrl, apiKey);
-    send('✅ Configuration complete! API URL and key set.');
+    configureClaudeSettings();
+    send('✅ Configuration complete!');
 
     return { success: true, output: 'Installed and configured' };
   } catch (e: any) {
-    send('❌ Installation failed: ' + e.message);
+    send('❌ Failed: ' + e.message);
     return { success: false, output: e.message };
   }
 });
 
-// Install OpenClaw — try multiple methods, no system Node.js required
+// ============ IPC: INSTALL OPENCLAW ============
+// Requires Node.js (installed in previous step)
+
 ipcMain.handle('install-openclaw', async () => {
-  const send = (msg: string) => mainWindow?.webContents.send('install-progress', { tool: 'openclaw', output: msg + '\n' });
+  const send = (msg: string) => sendProgress('openclaw', msg);
 
   try {
     // Check if already installed
-    try {
-      const version = execSync('openclaw --version', { encoding: 'utf8', timeout: 10000 });
-      send('✅ OpenClaw already installed: ' + version.trim());
-      return { success: true, output: 'Already installed' };
-    } catch { /* not installed */ }
-
-    send('📦 Installing OpenClaw...');
-
-    // Method 1: Try system npm
-    try {
-      send('Trying system npm...');
-      execSync('npm install -g openclaw', {
-        encoding: 'utf8',
-        timeout: 180000,
-      } as any);
-      send('✅ OpenClaw installed!');
-      return { success: true, output: 'Installed via system npm' };
-    } catch {
-      send('System npm not available.');
+    if (commandExists('openclaw')) {
+      const version = execSync('openclaw --version', { encoding: 'utf8', timeout: 10000 }).trim();
+      send('✅ OpenClaw already installed: ' + version);
+      return { success: true, output: version };
     }
 
-    // Method 2: Use Electron's bundled Node.js to run npm
-    try {
-      send('Using bundled Node.js...');
-      const electronNode = process.execPath;
-      // Find npm relative to Electron's node
-      const npmScript = path.join(path.dirname(electronNode), '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js');
-      if (fs.existsSync(npmScript)) {
-        execSync(`"${electronNode}" "${npmScript}" install -g openclaw`, {
-          encoding: 'utf8',
-          timeout: 180000,
-        } as any);
-        send('✅ OpenClaw installed via bundled Node!');
-        return { success: true, output: 'Installed via bundled Node' };
+    // Check if npm is available (Node.js must be installed first)
+    if (!commandExists('npm')) {
+      send('❌ npm not found. Please install Node.js first.');
+      return { success: false, output: 'npm not found. Install Node.js first.' };
+    }
+
+    send('📦 Installing OpenClaw via npm...');
+
+    if (process.platform === 'win32') {
+      execSync('npm install -g openclaw', { timeout: 180000, stdio: 'pipe' } as any);
+    } else {
+      // Mac/Linux may need sudo
+      try {
+        execSync('npm install -g openclaw', { timeout: 180000, stdio: 'pipe' } as any);
+      } catch {
+        send('Retrying with elevated permissions...');
+        execSync('sudo npm install -g openclaw', { timeout: 180000, stdio: 'pipe' } as any);
       }
-    } catch {
-      send('Bundled npm not available.');
     }
 
-    // Method 3: Download OpenClaw directly via curl/PowerShell
-    try {
-      send('Trying direct npm package download...');
-      if (process.platform === 'win32') {
-        execSync('powershell -Command "npm install -g openclaw"', {
-          encoding: 'utf8',
-          timeout: 180000,
-        } as any);
-      } else {
-        // Last resort: check if npx is available from any source
-        execSync('npx -y openclaw --version', {
-          encoding: 'utf8',
-          timeout: 180000,
-        } as any);
-      }
-      send('✅ OpenClaw installed!');
-      return { success: true, output: 'Installed' };
-    } catch {
-      send('All methods failed.');
-    }
-
-    return {
-      success: false,
-      output: 'Could not install OpenClaw. Please install Node.js from https://nodejs.org and try again.',
-    };
+    send('✅ OpenClaw installed!');
+    return { success: true, output: 'Installed' };
   } catch (e: any) {
-    send('❌ Installation failed: ' + e.message);
+    send('❌ Failed: ' + e.message);
     return { success: false, output: e.message };
   }
 });
 
-// Get customer config
-ipcMain.handle('get-config', async () => {
-  return CONFIG;
-});
+// ============ IPC: GET CONFIG ============
 
-// Chat with Claude Code (streaming)
+ipcMain.handle('get-config', async () => CONFIG);
+
+// ============ IPC: CLAUDE CHAT (streaming) ============
+
 ipcMain.handle('claude-chat', async (event, message: string, workDir: string) => {
   return new Promise((resolve) => {
-    // Find Claude binary
     const claudeBin = findClaudeBinary() || 'claude';
     const targetDir = workDir || path.join(getHomeDir(), '.openclaw');
 
@@ -333,7 +377,8 @@ ipcMain.handle('claude-chat', async (event, message: string, workDir: string) =>
   });
 });
 
-// Get OpenClaw status
+// ============ IPC: OPENCLAW STATUS ============
+
 ipcMain.handle('openclaw-status', async () => {
   try {
     const out = execSync('openclaw channels status 2>&1', { encoding: 'utf8', timeout: 15000 });
@@ -344,7 +389,8 @@ ipcMain.handle('openclaw-status', async () => {
   }
 });
 
-// Restart OpenClaw
+// ============ IPC: OPENCLAW RESTART ============
+
 ipcMain.handle('openclaw-restart', async () => {
   try {
     execSync('openclaw daemon restart 2>&1', { encoding: 'utf8', timeout: 15000 });

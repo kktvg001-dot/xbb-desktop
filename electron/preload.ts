@@ -3,7 +3,8 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld('electronAPI', {
   checkTool: (tool: string) => ipcRenderer.invoke('check-tool', tool),
   installTool: (tool: string) => ipcRenderer.invoke('install-tool', tool),
-  installClaude: (apiBaseUrl: string, apiKey: string) => ipcRenderer.invoke('install-claude', apiBaseUrl, apiKey),
+  installNodejs: () => ipcRenderer.invoke('install-nodejs'),
+  installClaude: () => ipcRenderer.invoke('install-claude'),
   installOpenclaw: () => ipcRenderer.invoke('install-openclaw'),
   onInstallProgress: (callback: (data: any) => void) => {
     ipcRenderer.on('install-progress', (_, data) => callback(data));
