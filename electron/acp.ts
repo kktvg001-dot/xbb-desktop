@@ -175,6 +175,8 @@ export class AcpConnection {
     let stderrCollected = '';
     child.stderr?.on('data', (data: Buffer) => {
       const chunk = data.toString();
+      // Suppress noisy ACP bridge warnings
+      if (chunk.includes('onPostToolUseHook')) return;
       console.error('[ACP STDERR]:', chunk);
       stderrCollected += chunk;
       if (stderrCollected.length > 2048) {

@@ -20,6 +20,7 @@ interface ChatMessage {
   error?: string;
   thinking?: string;
   imageBase64?: string;
+  showTools?: boolean;
 }
 
 @Component({
@@ -71,23 +72,35 @@ interface ChatMessage {
                 <span class="thinking-text">{{ truncate(msg.thinking, 120) }}</span>
               </div>
 
-              <!-- Tool cards -->
-              <div class="tool-card" *ngFor="let tool of msg.tools" [class.tool-done]="tool.status === 'completed' || tool.status === 'done'" [class.tool-running]="tool.status === 'running' || tool.status === 'in_progress'">
-                <div class="tool-header" (click)="tool.expanded = !tool.expanded">
+              <!-- Tool summary (collapsed by default) -->
+              <div class="tool-summary" *ngIf="msg.tools.length > 0">
+                <div class="tool-summary-header" (click)="msg.showTools = !msg.showTools">
                   <span class="tool-icon">
-                    <svg *ngIf="tool.status === 'running' || tool.status === 'in_progress'" class="spinner" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="20 12" /></svg>
-                    <span *ngIf="tool.status !== 'running' && tool.status !== 'in_progress'">&#10003;</span>
+                    <svg *ngIf="hasRunningTools(msg)" class="spinner" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="20 12" /></svg>
+                    <span *ngIf="!hasRunningTools(msg)">&#10003;</span>
                   </span>
-                  <span class="tool-name">{{ tool.name }}</span>
-                  <span class="tool-input-preview" *ngIf="tool.input && !tool.expanded">{{ truncate(tool.input, 60) }}</span>
-                  <span class="tool-expand">{{ tool.expanded ? '&#9650;' : '&#9660;' }}</span>
+                  <span class="tool-summary-text">{{ toolSummaryText(msg) }}</span>
+                  <span class="tool-expand">{{ msg.showTools ? '&#9650;' : '&#9660;' }}</span>
                 </div>
-                <div class="tool-body" *ngIf="tool.expanded">
-                  <div class="tool-input-full" *ngIf="tool.input">
-                    <pre>{{ tool.input }}</pre>
-                  </div>
-                  <div class="tool-output" *ngIf="tool.output">
-                    <pre>{{ truncate(tool.output, 2000) }}</pre>
+                <div class="tool-details" *ngIf="msg.showTools">
+                  <div class="tool-card" *ngFor="let tool of msg.tools" [class.tool-done]="tool.status === 'completed' || tool.status === 'done'" [class.tool-running]="tool.status === 'running' || tool.status === 'in_progress'">
+                    <div class="tool-header" (click)="tool.expanded = !tool.expanded">
+                      <span class="tool-icon">
+                        <svg *ngIf="tool.status === 'running' || tool.status === 'in_progress'" class="spinner" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="20 12" /></svg>
+                        <span *ngIf="tool.status !== 'running' && tool.status !== 'in_progress'">&#10003;</span>
+                      </span>
+                      <span class="tool-name">{{ tool.name }}</span>
+                      <span class="tool-input-preview" *ngIf="tool.input && !tool.expanded">{{ truncate(tool.input, 60) }}</span>
+                      <span class="tool-expand">{{ tool.expanded ? '&#9650;' : '&#9660;' }}</span>
+                    </div>
+                    <div class="tool-body" *ngIf="tool.expanded">
+                      <div class="tool-input-full" *ngIf="tool.input">
+                        <pre>{{ tool.input }}</pre>
+                      </div>
+                      <div class="tool-output" *ngIf="tool.output">
+                        <pre>{{ truncate(tool.output, 2000) }}</pre>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -334,6 +347,49 @@ interface ChatMessage {
     .thinking-text {
       font-style: italic;
       color: #999;
+    }
+
+    /* ── Tool summary ── */
+    .tool-summary {
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      overflow: hidden;
+      font-size: 13px;
+      max-width: 100%;
+    }
+    .tool-summary-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      user-select: none;
+      background: #fafafa;
+    }
+    .tool-summary-header:hover {
+      background: #f0f0f0;
+    }
+    .tool-summary-text {
+      font-weight: 600;
+      color: #333;
+      flex: 1;
+      min-width: 0;
+    }
+    .tool-details {
+      border-top: 1px solid #eee;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .tool-details .tool-card {
+      border-radius: 0;
+      border-left: none;
+      border-right: none;
+      border-bottom: none;
+    }
+    .tool-details .tool-card:first-child {
+      border-top: none;
     }
 
     /* ── Tool cards ── */
@@ -894,6 +950,24 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
   truncate(text: string, max: number): string {
     if (!text) return '';
     return text.length > max ? text.substring(0, max) + '...' : text;
+  }
+
+  hasRunningTools(msg: ChatMessage): boolean {
+    return msg.tools.some(t => t.status === 'running' || t.status === 'in_progress');
+  }
+
+  toolSummaryText(msg: ChatMessage): string {
+    const total = msg.tools.length;
+    if (total === 1) return msg.tools[0].name;
+    // Count by name
+    const counts: Record<string, number> = {};
+    for (const t of msg.tools) {
+      counts[t.name] = (counts[t.name] || 0) + 1;
+    }
+    const parts = Object.entries(counts).map(([name, count]) =>
+      count > 1 ? `${name} \u00D7${count}` : name
+    );
+    return `${total} operations (${parts.join(', ')})`;
   }
 
   formatMarkdown(content: string): string {
