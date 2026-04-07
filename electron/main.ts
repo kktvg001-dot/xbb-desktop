@@ -5,6 +5,15 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as https from 'https';
 
+// ============ GLOBAL ERROR HANDLERS ============
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  // Don't crash — just log
+});
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+});
+
 // Customer config — edit these values per deployment
 const CONFIG = {
   apiBaseUrl: 'https://pikkapi.cooltechgp.online',
@@ -90,17 +99,13 @@ function createTray() {
     {
       label: '🔄 Restart OpenClaw',
       click: () => {
-        try {
-          execSync('openclaw daemon restart 2>&1', { encoding: 'utf8', timeout: 15000 });
-        } catch {}
+        exec('openclaw daemon restart 2>&1', { timeout: 15000, windowsHide: true }, () => {});
       },
     },
     {
       label: '⏹️ Stop OpenClaw',
       click: () => {
-        try {
-          execSync('openclaw daemon stop 2>&1', { encoding: 'utf8', timeout: 15000 });
-        } catch {}
+        exec('openclaw daemon stop 2>&1', { timeout: 15000, windowsHide: true }, () => {});
       },
     },
     { type: 'separator' },
@@ -169,23 +174,17 @@ function sendProgress(tool: string, msg: string) {
   mainWindow?.webContents.send('install-progress', { tool, output: msg + '\n' });
 }
 
-// Check if a command exists in system PATH
-function commandExists(cmd: string): boolean {
-  try {
-    if (process.platform === 'win32') {
-      execSync(`where ${cmd}`, { encoding: 'utf8', timeout: 2000, stdio: 'pipe', windowsHide: true } as any);
-    } else {
-      execSync(`which ${cmd}`, { encoding: 'utf8', timeout: 2000, stdio: 'pipe' });
-    }
-    return true;
-  } catch {
-    return false;
-  }
+// Check if a command exists in system PATH (async — does not block main thread)
+function commandExists(cmd: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const checkCmd = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
+    exec(checkCmd, { timeout: 3000, windowsHide: true }, (err) => resolve(!err));
+  });
 }
 
-// Find claude binary (checks PATH + common locations)
-function findClaudeBinary(): string | null {
-  if (commandExists('claude')) return 'claude';
+// Find claude binary (checks known locations first, then PATH async)
+async function findClaudeBinary(): Promise<string | null> {
+  // Check known locations first (instant, no exec)
   const locations = process.platform === 'win32'
     ? [
         path.join(getHomeDir(), '.claude', 'local', 'claude.exe'),
@@ -200,6 +199,8 @@ function findClaudeBinary(): string | null {
   for (const loc of locations) {
     if (fs.existsSync(loc)) return loc;
   }
+  // Then check PATH (async)
+  if (await commandExists('claude')) return 'claude';
   return null;
 }
 
@@ -247,19 +248,28 @@ function downloadFile(url: string, dest: string): Promise<void> {
 // ============ IPC: CHECK TOOLS ============
 
 ipcMain.handle('check-tool', async (_, tool: string) => {
+  const execAsync = (cmd: string, timeout: number): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      exec(cmd, { encoding: 'utf8', timeout, windowsHide: true }, (err, stdout) => {
+        if (err) reject(err);
+        else resolve(stdout);
+      });
+    });
+  };
+
   try {
     if (tool === 'claude') {
-      const bin = findClaudeBinary();
+      const bin = await findClaudeBinary();
       if (!bin) return { installed: false, version: null };
-      const version = execSync(`"${bin}" --version 2>&1`, { encoding: 'utf8', timeout: 10000 });
+      const version = await execAsync(`"${bin}" --version 2>&1`, 10000);
       return { installed: true, version: version.trim().split('\n')[0] };
     }
     if (tool === 'node') {
-      const version = execSync('node --version 2>&1', { encoding: 'utf8', timeout: 5000 });
+      const version = await execAsync('node --version 2>&1', 5000);
       return { installed: true, version: version.trim() };
     }
     if (tool === 'openclaw') {
-      const version = execSync('openclaw --version 2>&1', { encoding: 'utf8', timeout: 10000 });
+      const version = await execAsync('openclaw --version 2>&1', 10000);
       return { installed: true, version: version.trim().split('\n')[0] };
     }
     return { installed: false, version: null };
@@ -276,10 +286,12 @@ ipcMain.handle('install-nodejs', async () => {
 
   try {
     // Check if already installed
-    if (commandExists('node')) {
-      const version = execSync('node --version', { encoding: 'utf8', timeout: 5000 }).trim();
-      send('✅ Node.js already installed: ' + version);
-      return { success: true, output: version };
+    if (await commandExists('node')) {
+      try {
+        const version = execSync('node --version', { encoding: 'utf8', timeout: 5000, windowsHide: true }).trim();
+        send('✅ Node.js already installed: ' + version);
+        return { success: true, output: version };
+      } catch {}
     }
 
     send('📦 Installing Node.js...');
@@ -298,6 +310,7 @@ ipcMain.handle('install-nodejs', async () => {
       execSync(`msiexec /i "${msiPath}" /quiet /norestart`, {
         timeout: 300000,
         stdio: 'pipe',
+        windowsHide: true,
       } as any);
 
       // Clean up
@@ -367,10 +380,10 @@ ipcMain.handle('install-claude', async () => {
 
   try {
     // Check if already installed
-    const existingBin = findClaudeBinary();
+    const existingBin = await findClaudeBinary();
     if (existingBin) {
       try {
-        const version = execSync(`"${existingBin}" --version`, { encoding: 'utf8', timeout: 10000 });
+        const version = execSync(`"${existingBin}" --version`, { encoding: 'utf8', timeout: 10000, windowsHide: true });
         send('✅ Claude Code already installed: ' + version.trim());
       } catch {
         send('✅ Claude Code found at: ' + existingBin);
@@ -387,7 +400,7 @@ ipcMain.handle('install-claude', async () => {
       send('Downloading for Windows...');
       execSync(
         'powershell -ExecutionPolicy Bypass -Command "& { $script = Invoke-WebRequest -Uri \'https://claude.ai/install.ps1\' -UseBasicParsing; Invoke-Expression $script.Content }"',
-        { timeout: 180000, stdio: 'pipe' } as any
+        { timeout: 180000, stdio: 'pipe', windowsHide: true } as any
       );
     } else {
       // Mac/Linux: native install script
@@ -421,15 +434,17 @@ ipcMain.handle('install-openclaw', async () => {
 
   try {
     // Check if already installed
-    if (commandExists('openclaw')) {
-      const version = execSync('openclaw --version', { encoding: 'utf8', timeout: 10000 }).trim();
-      send('✅ OpenClaw already installed: ' + version);
-      return { success: true, output: version };
+    if (await commandExists('openclaw')) {
+      try {
+        const version = execSync('openclaw --version', { encoding: 'utf8', timeout: 10000, windowsHide: true }).trim();
+        send('✅ OpenClaw already installed: ' + version);
+        return { success: true, output: version };
+      } catch {}
     }
 
     // Find npm — check PATH (including freshly installed Node.js locations)
     let npmCmd = 'npm';
-    if (!commandExists('npm')) {
+    if (!(await commandExists('npm'))) {
       // Try known locations after fresh install
       const npmLocations = process.platform === 'win32'
         ? ['C:\\Program Files\\nodejs\\npm.cmd', path.join(getHomeDir(), 'AppData', 'Roaming', 'npm', 'npm.cmd')]
@@ -448,7 +463,7 @@ ipcMain.handle('install-openclaw', async () => {
     send('📦 Installing OpenClaw via npm...');
 
     if (process.platform === 'win32') {
-      execSync(`${npmCmd} install -g openclaw`, { timeout: 180000, stdio: 'pipe', env: process.env } as any);
+      execSync(`${npmCmd} install -g openclaw`, { timeout: 180000, stdio: 'pipe', env: process.env, windowsHide: true } as any);
     } else {
       try {
         execSync(`${npmCmd} install -g openclaw`, { timeout: 180000, stdio: 'pipe', env: process.env } as any);
@@ -473,9 +488,20 @@ ipcMain.handle('get-config', async () => CONFIG);
 // ============ IPC: CLAUDE CHAT (streaming) ============
 
 ipcMain.handle('claude-chat', async (event, message: string, workDir: string) => {
+  const claudeBin = await findClaudeBinary();
   return new Promise((resolve) => {
-    const claudeBin = findClaudeBinary() || 'claude';
+    if (!claudeBin) {
+      mainWindow?.webContents.send('claude-stream', { type: 'error', content: 'Claude Code not found. Please run Setup first.' });
+      mainWindow?.webContents.send('claude-stream-end', { code: 1 });
+      resolve({ success: false, output: 'Claude Code not found. Run Setup first.' });
+      return;
+    }
+
     const targetDir = workDir || path.join(getHomeDir(), '.openclaw');
+    // Ensure target directory exists
+    if (!fs.existsSync(targetDir)) {
+      try { fs.mkdirSync(targetDir, { recursive: true }); } catch {}
+    }
 
     const args = [
       '-p', message,
@@ -528,24 +554,30 @@ ipcMain.handle('claude-chat', async (event, message: string, workDir: string) =>
 // ============ IPC: OPENCLAW STATUS ============
 
 ipcMain.handle('openclaw-status', async () => {
-  try {
-    const out = execSync('openclaw channels status 2>&1', { encoding: 'utf8', timeout: 15000 });
-    const whatsapp = out.includes('connected') ? 'connected' : out.includes('disconnected') ? 'disconnected' : 'unknown';
-    return { gateway: true, whatsapp, raw: out };
-  } catch {
-    return { gateway: false, whatsapp: 'unknown', raw: '' };
-  }
+  return new Promise((resolve) => {
+    exec('openclaw channels status 2>&1', { encoding: 'utf8', timeout: 10000, windowsHide: true }, (err, stdout) => {
+      if (err) {
+        resolve({ gateway: false, whatsapp: 'unknown', raw: '' });
+        return;
+      }
+      const whatsapp = stdout.includes('connected') ? 'connected' : stdout.includes('disconnected') ? 'disconnected' : 'unknown';
+      resolve({ gateway: true, whatsapp, raw: stdout });
+    });
+  });
 });
 
 // ============ IPC: OPENCLAW RESTART ============
 
 ipcMain.handle('openclaw-restart', async () => {
-  try {
-    execSync('openclaw daemon restart 2>&1', { encoding: 'utf8', timeout: 15000 });
-    return { success: true };
-  } catch (e: any) {
-    return { success: false, error: e.message };
-  }
+  return new Promise((resolve) => {
+    exec('openclaw daemon restart 2>&1', { encoding: 'utf8', timeout: 15000, windowsHide: true }, (err, stdout) => {
+      if (err) {
+        resolve({ success: false, error: err.message });
+        return;
+      }
+      resolve({ success: true });
+    });
+  });
 });
 
 // ============ IPC: AUTO-START SETTINGS ============
