@@ -182,23 +182,35 @@ export class AcpConnection {
     }
   }
 
-  // Create new session
+  // Create new session — try resume first, fallback to fresh session
   async newSession(workingDir: string, resumeSessionId?: string): Promise<string> {
-    const params: any = {
-      cwd: workingDir,
-      mcpServers: [],
-    };
-
-    // Resume support (Claude ACP format)
+    // Try resume if we have a session ID
     if (resumeSessionId) {
-      params._meta = {
-        claudeCode: {
-          options: { resume: resumeSessionId },
-        },
-      };
+      try {
+        const params: any = {
+          cwd: workingDir,
+          mcpServers: [],
+          _meta: {
+            claudeCode: {
+              options: { resume: resumeSessionId },
+            },
+          },
+        };
+        const response = await this.sendRequest('session/new', params);
+        if (response.sessionId) {
+          this.sessionId = response.sessionId;
+          return this.sessionId;
+        }
+      } catch {
+        // Resume failed — create fresh session below
+      }
     }
 
-    const response = await this.sendRequest('session/new', params);
+    // Fresh session (no resume)
+    const response = await this.sendRequest('session/new', {
+      cwd: workingDir,
+      mcpServers: [],
+    });
     this.sessionId = response.sessionId;
     return this.sessionId!;
   }

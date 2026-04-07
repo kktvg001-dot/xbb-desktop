@@ -31,7 +31,7 @@ let acpConnection: AcpConnection | null = null;
 let lastSessionId: string | null = null;
 
 // Persist sessionId to disk for cross-restart resume
-const SESSION_FILE = path.join(os.homedir(), '.openclaw', '.acp-session');
+const SESSION_FILE = path.join(os.homedir(), '.xbb-desktop', '.acp-session');
 
 function saveSessionId(id: string) {
   try {
@@ -521,7 +521,7 @@ ipcMain.handle('get-config', async () => ({
 
 ipcMain.handle('claude-connect', async (_, workDir: string) => {
   try {
-    const targetDir = workDir || path.join(getHomeDir(), '.openclaw');
+    const targetDir = workDir || getHomeDir();
     if (!fs.existsSync(targetDir)) {
       try { fs.mkdirSync(targetDir, { recursive: true }); } catch {}
     }
@@ -577,7 +577,8 @@ ipcMain.handle('claude-cancel', async () => {
 
 ipcMain.handle('claude-chat', async (_event, message: string, workDir: string) => {
   try {
-    const targetDir = workDir || path.join(getHomeDir(), '.openclaw');
+    // Default to user's home directory — NOT .openclaw (this is just a Claude Code chat)
+    const targetDir = workDir || getHomeDir();
     if (!fs.existsSync(targetDir)) {
       try { fs.mkdirSync(targetDir, { recursive: true }); } catch {}
     }
