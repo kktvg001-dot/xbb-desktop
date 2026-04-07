@@ -104,11 +104,20 @@ function httpRequest(url: string, options: {
 // ── Login via myapi OIDC (Google Sign-In) ─────────────────────
 
 export async function loginViaMyapiOIDC(parentWindow: BrowserWindow): Promise<AuthUser> {
-  logger.log('AUTH', 'Starting myapi OIDC login');
+  // Send all auth debug logs to remote so we can see them on the server
+  let debugSeq = 0;
+  const debug = (msg: string) => {
+    logger.log('AUTH', msg);
+    // Each debug log gets a unique key to bypass dedup
+    logger.remote(`auth-debug-${++debugSeq}`, 'info', `[AUTH] ${msg}`);
+  };
+
+  debug('Starting myapi OIDC login');
 
   return new Promise((resolve, reject) => {
     let resolved = false;
     let pollTimer: NodeJS.Timeout | null = null;
+    let pollCount = 0;
 
     const authWindow = new BrowserWindow({
       width: 500,
@@ -125,27 +134,32 @@ export async function loginViaMyapiOIDC(parentWindow: BrowserWindow): Promise<Au
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 
       try {
-        // Get session cookies from the auth window
+        // Get ALL cookies from the auth window
         const cookies = await authWindow.webContents.session.cookies.get({ url: MYAPI_URL });
+        debug(`Got ${cookies.length} cookies: ${cookies.map(c => c.name).join(', ')}`);
+
         const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-        logger.log('AUTH', 'Got cookies, checking session...');
 
         // Get user info from myapi using the session
+        debug('Calling /api/user/self...');
         const userResp = await httpRequest(`${MYAPI_URL}/api/user/self`, {
           headers: { 'Cookie': cookieStr },
         });
-        const userData = JSON.parse(userResp.body);
+        debug(`/api/user/self response status: ${userResp.status}`);
 
+        const userData = JSON.parse(userResp.body);
         if (!userData.success || !userData.data) {
+          debug(`/api/user/self failed: ${userData.message || 'no data'}`);
           throw new Error('Failed to get user info after login');
         }
 
         const user = userData.data;
         const email = user.email || `user${user.id}@myapi.local`;
         const displayName = user.display_name || user.username;
-        logger.log('AUTH', 'Session verified:', email);
+        debug(`Session verified: ${email} (id=${user.id})`);
 
-        // Call provision endpoint — server creates API key securely
+        // Call provision endpoint
+        debug('Calling provision endpoint...');
         const provResp = await httpRequest(PROVISION_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -158,6 +172,7 @@ export async function loginViaMyapiOIDC(parentWindow: BrowserWindow): Promise<Au
         });
 
         const provResult = JSON.parse(provResp.body);
+        debug(`Provision response: success=${provResult.success}, error=${provResult.error || 'none'}`);
         if (!provResult.success) throw new Error(provResult.error || 'Provisioning failed');
 
         const auth: AuthUser = {
@@ -173,54 +188,69 @@ export async function loginViaMyapiOIDC(parentWindow: BrowserWindow): Promise<Au
 
         saveAuth(auth);
         authWindow.close();
-        logger.remote('user-login', 'info', `User logged in: ${email}`);
+        debug(`LOGIN COMPLETE: ${email}`);
         resolve(auth);
       } catch (e: any) {
-        logger.error('AUTH', 'Login completion failed:', e.message);
+        debug(`completeLogin error: ${e.message}`);
         resolved = false; // allow retry
       }
     };
 
     // Method 1: detect navigation events
-    const handleNavigation = async (url: string) => {
+    const handleNavigation = async (eventName: string, url: string) => {
       if (resolved) return;
-      logger.log('AUTH', 'Navigation:', url);
+      debug(`[${eventName}] ${url}`);
       if (!url.startsWith(MYAPI_URL)) return;
-      // Skip pages that are still in the auth flow
-      if (url.includes('/oauth/') || url.includes('/login')) return;
-      // Landed on dashboard/home — login succeeded
+      if (url.includes('/oauth/') || url.includes('/login')) {
+        debug(`Skipping (auth flow page): ${url}`);
+        return;
+      }
+      debug(`Detected dashboard URL, completing login...`);
       await completeLogin();
     };
 
-    authWindow.webContents.on('will-redirect', (_e, url) => handleNavigation(url));
-    authWindow.webContents.on('did-navigate', (_e, url) => handleNavigation(url));
-    authWindow.webContents.on('did-navigate-in-page', (_e, url) => handleNavigation(url));
+    authWindow.webContents.on('will-redirect', (_e, url) => handleNavigation('will-redirect', url));
+    authWindow.webContents.on('did-navigate', (_e, url) => handleNavigation('did-navigate', url));
+    authWindow.webContents.on('did-navigate-in-page', (_e, url) => handleNavigation('did-navigate-in-page', url));
+    authWindow.webContents.on('did-finish-load', () => {
+      const url = authWindow.webContents.getURL();
+      debug(`[did-finish-load] ${url}`);
+    });
 
     // Method 2: poll for session cookie every 2 seconds
-    // This catches cases where SPA routing doesn't trigger navigation events
     pollTimer = setInterval(async () => {
       if (resolved) return;
+      pollCount++;
       try {
         const cookies = await authWindow.webContents.session.cookies.get({ url: MYAPI_URL });
+        const cookieNames = cookies.map(c => c.name);
         const sessionCookie = cookies.find(c => c.name === 'session');
+        // Log every 5th poll to avoid spam, but always log when cookies change
+        if (pollCount % 5 === 1 || sessionCookie) {
+          debug(`[poll #${pollCount}] cookies: [${cookieNames.join(', ')}] session=${sessionCookie ? 'YES' : 'no'}`);
+        }
         if (sessionCookie) {
-          logger.log('AUTH', 'Session cookie detected via polling');
+          debug('Session cookie found via polling! Completing login...');
           await completeLogin();
         }
-      } catch {}
+      } catch (e: any) {
+        debug(`[poll error] ${e.message}`);
+      }
     }, 2000);
 
     authWindow.on('closed', () => {
+      debug('Auth window closed');
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       if (!resolved) { resolved = true; reject(new Error('Login cancelled')); }
     });
 
     // Open myapi login page
+    debug(`Loading ${MYAPI_URL}/login`);
     authWindow.loadURL(`${MYAPI_URL}/login`);
 
     setTimeout(() => {
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-      if (!resolved) { resolved = true; authWindow?.close(); reject(new Error('Login timed out')); }
+      if (!resolved) { resolved = true; debug('Login timed out'); authWindow?.close(); reject(new Error('Login timed out')); }
     }, 120000);
   });
 }
