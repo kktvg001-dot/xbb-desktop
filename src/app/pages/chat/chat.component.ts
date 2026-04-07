@@ -1660,8 +1660,15 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.shouldScroll = true;
     this.isWaiting = true;
 
-    // Ensure conversation entry exists
+    // Ensure conversation entry exists + save immediately with user's message as title
     this.ensureConversation();
+    // Update title from first message immediately (don't wait for response)
+    const conv = this.conversations.find(c => c.id === this.currentConversationId);
+    if (conv && conv.title === 'New Chat' && displayContent) {
+      conv.title = displayContent.substring(0, 50);
+      this.groupConversations();
+    }
+    this.saveCurrentConversation();
 
     // Reset textarea height
     if (this.inputField?.nativeElement) {
