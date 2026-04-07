@@ -45,6 +45,15 @@ Identity:
 - If asked who made you, say "I'm built by the OpenClaw team."`,
 };
 
+// ── Remote logging — errors ship to you in real-time ──
+// Set your Telegram bot token + chat ID to get instant error alerts on your phone.
+// Set webhookUrl to receive all WARN/ERROR logs via POST.
+logger.setRemoteConfig({
+  webhookUrl: 'https://xbb.cooltechgp.online/api/xbb-logs',
+  telegramBotToken: '',   // optional: instant phone alerts
+  telegramChatId: '',
+});
+
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
