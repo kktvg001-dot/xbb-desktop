@@ -122,8 +122,10 @@ export async function loginViaMyapiOIDC(parentWindow: BrowserWindow): Promise<Au
     // Session cookie is set — we use it to get user info + provision API key.
     const handleNavigation = async (url: string) => {
       if (resolved) return;
-      // Wait for redirect back to myapi (not the /oauth/ path)
-      if (!url.startsWith(MYAPI_URL) || url.includes('/oauth/')) return;
+      // Wait for redirect back to myapi after login
+      // Skip login/oauth pages — those are still in the auth flow
+      if (!url.startsWith(MYAPI_URL)) return;
+      if (url.includes('/oauth/') || url.includes('/login')) return;
 
       resolved = true;
       try {
@@ -189,8 +191,10 @@ export async function loginViaMyapiOIDC(parentWindow: BrowserWindow): Promise<Au
       if (!resolved) { resolved = true; reject(new Error('Login cancelled')); }
     });
 
-    // Open myapi OIDC login — this redirects to Google
-    authWindow.loadURL(`${MYAPI_URL}/oauth/oidc`);
+    // Open myapi login page — user clicks "Sign in with Google" from there
+    // (Loading /oauth/oidc directly can fail with "Authorization code not allowed"
+    //  because the redirect chain differs in Electron vs a real browser)
+    authWindow.loadURL(`${MYAPI_URL}/login`);
 
     setTimeout(() => {
       if (!resolved) { resolved = true; authWindow?.close(); reject(new Error('Login timed out')); }
