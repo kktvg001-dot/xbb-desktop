@@ -303,24 +303,31 @@ export class AcpConnection {
     return this.sessionId!;
   }
 
-  async sendPrompt(message: string, imageBase64?: string): Promise<unknown> {
+  async sendPrompt(message: string, imageBase64?: string | string[]): Promise<unknown> {
     if (!this.sessionId) {
       throw new Error('No active session. Call newSession() first.');
     }
 
     let promptText = message || '';
 
-    // If image is provided, save to temp file and use @ reference (AionUI pattern)
-    if (imageBase64) {
+    // Normalize to array
+    const images = imageBase64
+      ? (Array.isArray(imageBase64) ? imageBase64 : [imageBase64])
+      : [];
+
+    // Save each image to temp file and prepend @ references (AionUI pattern)
+    if (images.length > 0) {
       const tmpDir = path.join(os.tmpdir(), 'xbb-desktop');
       if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-      const imgPath = path.join(tmpDir, `paste-${Date.now()}.png`);
-      // Remove data URL prefix if present
-      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-      fs.writeFileSync(imgPath, Buffer.from(base64Data, 'base64'));
-      // Prepend @ file reference (Claude Code reads files via @ prefix)
-      const escapedPath = imgPath.includes(' ') ? `@"${imgPath}"` : `@${imgPath}`;
-      promptText = `${escapedPath} ${promptText || 'What is in this image?'}`;
+      const refs: string[] = [];
+      for (let i = 0; i < images.length; i++) {
+        const imgPath = path.join(tmpDir, `paste-${Date.now()}-${i}.png`);
+        const base64Data = images[i].replace(/^data:image\/\w+;base64,/, '');
+        fs.writeFileSync(imgPath, Buffer.from(base64Data, 'base64'));
+        const escapedPath = imgPath.includes(' ') ? `@"${imgPath}"` : `@${imgPath}`;
+        refs.push(escapedPath);
+      }
+      promptText = `${refs.join(' ')} ${promptText || 'What is in this image?'}`;
     }
 
     const promptContent = [{ type: 'text', text: promptText }];

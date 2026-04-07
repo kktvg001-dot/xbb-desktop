@@ -610,7 +610,7 @@ ipcMain.handle('claude-cancel', async () => {
 
 // ============ IPC: CLAUDE CHAT (streaming via ACP) ============
 
-ipcMain.handle('claude-chat', async (_event, message: string, workDir: string, imageBase64?: string) => {
+ipcMain.handle('claude-chat', async (_event, message: string, workDir: string, imageBase64?: string | string[]) => {
   try {
     // Default to user's home directory — NOT .openclaw (this is just a Claude Code chat)
     const targetDir = workDir || getHomeDir();
@@ -807,12 +807,12 @@ ipcMain.handle('claude-new-session', async (_, workDir: string, resumeSessionId?
     acpConnection.onError = (err: string) => {
       mainWindow?.webContents.send('claude-stream', { type: 'error', content: err });
     };
-    acpConnection.onDisconnect = (info) => {
-      mainWindow?.webContents.send('claude-stream', {
-        type: 'error',
-        content: `ACP process disconnected (code: ${info.code}, signal: ${info.signal})`,
-      });
+    acpConnection.onDisconnect = () => {
+      acpConnection = null;
     };
+
+    // Wait for previous process to fully clean up
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     await acpConnection.connect(targetDir, {
       ANTHROPIC_BASE_URL: CONFIG.apiBaseUrl,

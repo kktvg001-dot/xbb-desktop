@@ -16,7 +16,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   claudeConnect: (workDir: string) => ipcRenderer.invoke('claude-connect', workDir),
   claudeDisconnect: () => ipcRenderer.invoke('claude-disconnect'),
   claudeCancel: () => ipcRenderer.invoke('claude-cancel'),
-  claudeChat: (message: string, workDir: string, imageBase64?: string) => ipcRenderer.invoke('claude-chat', message, workDir, imageBase64),
+  claudeChat: (message: string, workDir: string, imageBase64?: string | string[]) => ipcRenderer.invoke('claude-chat', message, workDir, imageBase64),
   onClaudeStream: (callback: (data: any) => void) => {
     ipcRenderer.on('claude-stream', (_, data) => callback(data));
   },

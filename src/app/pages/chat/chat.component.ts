@@ -30,6 +30,7 @@ interface ChatMessage {
   error?: string;
   thinking?: string;
   imageBase64?: string;
+  images?: string[];
   showTools?: boolean;
   queued?: boolean;
 }
@@ -122,7 +123,14 @@ interface ChatMessage {
           <ng-container *ngFor="let msg of messages; let i = index">
             <!-- User message -->
             <div class="msg-row msg-user" *ngIf="msg.role === 'user'">
-              <img *ngIf="msg.imageBase64"
+              <div class="user-images" *ngIf="msg.images && msg.images.length > 0">
+                <img *ngFor="let img of msg.images; let idx = index"
+                  [src]="'data:image/png;base64,' + img"
+                  class="user-image"
+                  (click)="previewImage(img)"
+                  [alt]="'Image ' + (idx + 1)" />
+              </div>
+              <img *ngIf="msg.imageBase64 && (!msg.images || msg.images.length === 0)"
                 [src]="'data:image/png;base64,' + msg.imageBase64"
                 class="user-image"
                 (click)="previewImage(msg.imageBase64!)"
@@ -258,11 +266,12 @@ interface ChatMessage {
 
       <!-- Input bar -->
       <div class="input-bar">
-        <!-- Image preview -->
-        <div class="image-preview-wrapper" *ngIf="pendingImageBase64">
-          <div class="image-preview">
-            <img [src]="'data:image/png;base64,' + pendingImageBase64" alt="Pending image" />
-            <button class="image-remove" (click)="removeImage()">&times;</button>
+        <!-- Image preview chips -->
+        <div class="image-chips" *ngIf="pendingImages.length > 0">
+          <div class="image-chip" *ngFor="let img of pendingImages; let i = index">
+            <img [src]="'data:image/png;base64,' + img" class="chip-thumb" (click)="previewImage(img)" />
+            <span class="chip-label">Image {{ i + 1 }}</span>
+            <button class="chip-remove" (click)="removeImageAt(i)">&times;</button>
           </div>
         </div>
         <div class="input-area" [class.focused]="inputFocused">
@@ -289,8 +298,8 @@ interface ChatMessage {
             *ngIf="!claude.isStreaming"
             class="send-button"
             (click)="send()"
-            [class.visible]="inputText.trim().length > 0 || !!pendingImageBase64"
-            [disabled]="!inputText.trim() && !pendingImageBase64">
+            [class.visible]="inputText.trim().length > 0 || pendingImages.length > 0"
+            [disabled]="!inputText.trim() && pendingImages.length === 0">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M8 14V2M8 2L3 7M8 2L13 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -1079,32 +1088,47 @@ interface ChatMessage {
       background: var(--glass-bg);
     }
 
-    /* ── Image preview ── */
-    .image-preview-wrapper {
+    /* ── Image chips ── */
+    .image-chips {
       max-width: 768px;
       margin: 0 auto 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
     }
-    .image-preview {
-      position: relative;
-      display: inline-block;
-    }
-    .image-preview img {
-      max-height: 200px;
-      max-width: 100%;
-      border-radius: 12px;
+    .image-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card, #2f2f2f);
       border: 1px solid var(--border);
-      object-fit: contain;
+      border-radius: 10px;
+      padding: 4px 8px 4px 4px;
+      animation: chipIn 0.15s ease;
     }
-    .image-remove {
-      position: absolute;
-      top: 4px;
-      right: 4px;
-      width: 22px;
-      height: 22px;
+    @keyframes chipIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .chip-thumb {
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      object-fit: cover;
+      cursor: pointer;
+    }
+    .chip-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+    .chip-remove {
+      width: 20px;
+      height: 20px;
       border-radius: 50%;
       border: none;
-      background: rgba(0, 0, 0, 0.6);
-      color: #fff;
+      background: transparent;
+      color: var(--text-muted);
       font-size: 14px;
       line-height: 1;
       cursor: pointer;
@@ -1112,9 +1136,20 @@ interface ChatMessage {
       align-items: center;
       justify-content: center;
       padding: 0;
+      transition: all 0.15s;
     }
-    .image-remove:hover {
-      background: rgba(239, 68, 68, 0.8);
+    .chip-remove:hover {
+      background: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+    }
+
+    /* ── User images in messages ── */
+    .user-images {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+      justify-content: flex-end;
     }
 
     /* ── Input bar ── */
@@ -1397,7 +1432,7 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   inputText = '';
   inputFocused = false;
   isWaiting = false;
-  pendingImageBase64: string | null = null;
+  pendingImages: string[] = [];
   isDragging = false;
   lightboxImage: string | null = null;
   currentActivity = 'Thinking...';
@@ -1514,11 +1549,14 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   onPaste(event: ClipboardEvent) {
     const files = event.clipboardData?.files;
     if (files && files.length > 0) {
-      const file = files[0];
-      if (this.IMAGE_TYPES.includes(file.type)) {
-        event.preventDefault();
-        this.readImageFile(file);
+      let handled = false;
+      for (let i = 0; i < files.length; i++) {
+        if (this.IMAGE_TYPES.includes(files[i].type)) {
+          this.readImageFile(files[i]);
+          handled = true;
+        }
       }
+      if (handled) event.preventDefault();
     }
   }
 
@@ -1549,24 +1587,27 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     const files = event.dataTransfer?.files;
     if (files && files.length > 0) {
-      const file = files[0];
-      if (this.IMAGE_TYPES.includes(file.type)) {
-        this.readImageFile(file);
+      for (let i = 0; i < files.length; i++) {
+        if (this.IMAGE_TYPES.includes(files[i].type)) {
+          this.readImageFile(files[i]);
+        }
       }
     }
   }
 
-  removeImage() {
-    this.pendingImageBase64 = null;
+  removeImageAt(index: number) {
+    this.pendingImages.splice(index, 1);
   }
 
   private readImageFile(file: File) {
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
-      // Strip the "data:image/...;base64," prefix
-      this.pendingImageBase64 = dataUrl.split(',')[1] || null;
-      this.cdr.detectChanges();
+      const base64 = dataUrl.split(',')[1];
+      if (base64) {
+        this.pendingImages.push(base64);
+        this.cdr.detectChanges();
+      }
     };
     reader.readAsDataURL(file);
   }
@@ -1596,15 +1637,15 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   send() {
     const text = this.inputText.trim();
-    const image = this.pendingImageBase64;
-    if (!text && !image) return;
+    const images = this.pendingImages.length > 0 ? [...this.pendingImages] : [];
+    if (!text && images.length === 0) return;
 
     // Queue the message if Claude is currently streaming — show it in the conversation
     if (this.claude.isStreaming) {
-      this.messages.push({ role: 'user', content: text, tools: [], imageBase64: image || undefined, queued: true });
+      this.messages.push({ role: 'user', content: text, tools: [], images: images.length > 0 ? images : undefined, queued: true });
       this.pendingQueue.push(text);
       this.inputText = '';
-      this.pendingImageBase64 = null;
+      this.pendingImages = [];
       if (this.inputField?.nativeElement) {
         this.inputField.nativeElement.style.height = 'auto';
       }
@@ -1613,9 +1654,9 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
 
     const displayContent = text || '';
-    this.messages.push({ role: 'user', content: displayContent, tools: [], imageBase64: image || undefined });
+    this.messages.push({ role: 'user', content: displayContent, tools: [], images: images.length > 0 ? images : undefined });
     this.inputText = '';
-    this.pendingImageBase64 = null;
+    this.pendingImages = [];
     this.shouldScroll = true;
     this.isWaiting = true;
 
@@ -1631,7 +1672,7 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.messages.push(assistantMsg);
     this.currentAssistant = assistantMsg;
 
-    this.streamSub = this.claude.sendMessage(text, image || undefined).subscribe({
+    this.streamSub = this.claude.sendMessage(text, images.length > 0 ? images : undefined).subscribe({
       next: (event: StreamEvent) => {
         this.isWaiting = false;
 
