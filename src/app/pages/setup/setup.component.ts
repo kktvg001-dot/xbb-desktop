@@ -519,8 +519,12 @@ export class SetupComponent implements OnInit, OnDestroy {
       setTimeout(() => this.runMockStep2(), 200);
       return;
     }
+    // Don't wait for tool check — go straight to Step 2
+    // Tools will be checked during each install step
     try {
-      await this.checkTools();
+      const checkPromise = this.checkTools();
+      const timeoutPromise = new Promise(resolve => setTimeout(resolve, 3000));
+      await Promise.race([checkPromise, timeoutPromise]);
     } catch {}
     this.isStarting = false;
     this.goToStep(2);
