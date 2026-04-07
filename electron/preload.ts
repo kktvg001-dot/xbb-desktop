@@ -40,4 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   claudeNewSession: (workDir: string, resumeSessionId?: string) => ipcRenderer.invoke('claude-new-session', workDir, resumeSessionId),
   // File tree
   listDirectory: (dirPath: string) => ipcRenderer.invoke('list-directory', dirPath),
+  // Logs
+  getLogs: (date?: string) => ipcRenderer.invoke('get-logs', date),
+  getLogDir: () => ipcRenderer.invoke('get-log-dir'),
 });

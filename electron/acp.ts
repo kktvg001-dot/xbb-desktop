@@ -5,6 +5,7 @@ import { spawn, ChildProcess, execFileSync } from 'child_process';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
+import * as logger from './logger';
 
 // ACP bridge package (pinned version from AionUI)
 const CLAUDE_ACP_NPX_PACKAGE = '@zed-industries/claude-agent-acp@0.21.0';
@@ -177,7 +178,7 @@ export class AcpConnection {
       const chunk = data.toString();
       // Suppress noisy ACP bridge warnings
       if (chunk.includes('onPostToolUseHook')) return;
-      console.error('[ACP STDERR]:', chunk);
+      logger.warn('ACP-STDERR', chunk.trim());
       stderrCollected += chunk;
       if (stderrCollected.length > 2048) {
         stderrCollected = stderrCollected.slice(-2048);
@@ -199,7 +200,7 @@ export class AcpConnection {
     });
 
     child.on('exit', (code, signal) => {
-      console.error(`[ACP] Process exited with code: ${code}, signal: ${signal}`);
+      logger.error('ACP', `Process exited with code: ${code}, signal: ${signal}`);
 
       if (!this.isSetupComplete) {
         // Startup phase
@@ -290,7 +291,7 @@ export class AcpConnection {
         }
       } catch {
         // Resume failed — create fresh session below
-        console.warn('[ACP] Session resume failed, creating fresh session');
+        logger.warn('ACP', 'Session resume failed, creating fresh session');
       }
     }
 

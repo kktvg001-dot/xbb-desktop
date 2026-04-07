@@ -5,14 +5,14 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as https from 'https';
 import { AcpConnection, StreamChunk } from './acp';
+import * as logger from './logger';
 
 // ============ GLOBAL ERROR HANDLERS ============
 process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  // Don't crash — just log
+  logger.error('MAIN', 'Uncaught Exception:', err);
 });
 process.on('unhandledRejection', (err) => {
-  console.error('Unhandled Rejection:', err);
+  logger.error('MAIN', 'Unhandled Rejection:', err);
 });
 
 // Customer config — edit these values per deployment
@@ -180,6 +180,8 @@ function createTray() {
 }
 
 app.whenReady().then(() => {
+  logger.log('MAIN', `App started, version: ${app.getVersion()}, platform: ${process.platform}, arch: ${process.arch}`);
+  logger.log('MAIN', `Electron: ${process.versions.electron}, Node: ${process.versions.node}`);
   createWindow();
   createTray();
 
@@ -612,14 +614,19 @@ ipcMain.handle('claude-cancel', async () => {
 
 // Helper: ensure ACP is connected and has a session
 async function ensureAcpReady(targetDir: string): Promise<void> {
-  if (acpConnection && acpConnection.isConnected()) return;
+  if (acpConnection && acpConnection.isConnected()) {
+    logger.log('ACP', 'Connection alive, reusing');
+    return;
+  }
 
   // Kill stale connection if any
   if (acpConnection) {
+    logger.warn('ACP', 'Stale connection detected, disconnecting');
     try { await acpConnection.disconnect(); } catch {}
     acpConnection = null;
   }
 
+  logger.log('ACP', 'Creating new connection, workDir:', targetDir);
   acpConnection = new AcpConnection();
 
   acpConnection.onStreamChunk = (chunk: StreamChunk) => {
@@ -627,10 +634,12 @@ async function ensureAcpReady(targetDir: string): Promise<void> {
   };
 
   acpConnection.onError = (err: string) => {
+    logger.error('ACP', 'Stream error:', err);
     mainWindow?.webContents.send('claude-stream', { type: 'error', content: err });
   };
 
-  acpConnection.onDisconnect = () => {
+  acpConnection.onDisconnect = (info) => {
+    logger.warn('ACP', 'Process disconnected:', info);
     acpConnection = null;
   };
 
@@ -640,10 +649,12 @@ async function ensureAcpReady(targetDir: string): Promise<void> {
   });
 
   const savedSession = loadSessionId();
+  logger.log('ACP', 'Connected. Creating session, resume:', savedSession || 'none');
   const sessionId = await acpConnection.newSession(targetDir, savedSession || undefined);
   lastSessionId = sessionId;
   saveSessionId(sessionId);
   isFirstPromptInSession = true;
+  logger.log('ACP', 'Session ready:', sessionId);
 }
 
 ipcMain.handle('claude-chat', async (_event, message: string, workDir: string, imageBase64?: string | string[]) => {
@@ -664,12 +675,13 @@ ipcMain.handle('claude-chat', async (_event, message: string, workDir: string, i
     }
 
     // Try sending — if it fails with session error, reconnect and retry once
+    logger.log('CHAT', 'Sending prompt, length:', finalMessage.length, 'images:', Array.isArray(imageBase64) ? imageBase64.length : imageBase64 ? 1 : 0);
     try {
       await acpConnection!.sendPrompt(finalMessage, imageBase64);
     } catch (promptErr: any) {
       const msg = promptErr.message || '';
       if (msg.includes('No active session') || msg.includes('exited unexpectedly') || msg.includes('Resource not found')) {
-        console.error('[ACP] Prompt failed, reconnecting:', msg);
+        logger.warn('CHAT', 'Prompt failed, auto-reconnecting:', msg);
         // Force full reconnect
         acpConnection = null;
         await ensureAcpReady(targetDir);
@@ -683,10 +695,12 @@ ipcMain.handle('claude-chat', async (_event, message: string, workDir: string, i
       }
     }
 
+    logger.log('CHAT', 'Prompt completed successfully');
     mainWindow?.webContents.send('claude-stream', { type: 'done' });
     mainWindow?.webContents.send('claude-stream-end', { code: 0 });
     return { success: true, sessionId: lastSessionId };
   } catch (e: any) {
+    logger.error('CHAT', 'Prompt failed:', e.message);
     mainWindow?.webContents.send('claude-stream', { type: 'error', content: e.message });
     mainWindow?.webContents.send('claude-stream-end', { code: 1 });
     return { success: false, output: e.message };
@@ -809,45 +823,43 @@ ipcMain.handle('list-directory', async (_, dirPath: string) => {
   }
 });
 
+// ============ IPC: LOGS ============
+
+ipcMain.handle('get-logs', async (_, date?: string) => {
+  return {
+    content: logger.readLog(date, 500),
+    files: logger.listLogs(),
+    logDir: logger.getLogDir(),
+  };
+});
+
+ipcMain.handle('get-log-dir', async () => {
+  return logger.getLogDir();
+});
+
 // ============ IPC: NEW SESSION (for conversation switching) ============
 
 ipcMain.handle('claude-new-session', async (_, workDir: string, resumeSessionId?: string) => {
   try {
     const targetDir = workDir || getHomeDir();
+    logger.log('SESSION', 'New session requested, resume:', resumeSessionId || 'none');
 
     // Tear down existing connection
     if (acpConnection) {
+      logger.log('SESSION', 'Disconnecting previous connection');
       await acpConnection.disconnect();
       acpConnection = null;
     }
 
-    acpConnection = new AcpConnection();
-
-    acpConnection.onStreamChunk = (chunk: StreamChunk) => {
-      mainWindow?.webContents.send('claude-stream', chunk);
-    };
-    acpConnection.onError = (err: string) => {
-      mainWindow?.webContents.send('claude-stream', { type: 'error', content: err });
-    };
-    acpConnection.onDisconnect = () => {
-      acpConnection = null;
-    };
-
     // Wait for previous process to fully clean up
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    await acpConnection.connect(targetDir, {
-      ANTHROPIC_BASE_URL: CONFIG.apiBaseUrl,
-      ANTHROPIC_AUTH_TOKEN: CONFIG.apiKey,
-    });
+    await ensureAcpReady(targetDir);
+    logger.log('SESSION', 'New session created:', lastSessionId);
 
-    const sessionId = await acpConnection.newSession(targetDir, resumeSessionId || undefined);
-    lastSessionId = sessionId;
-    saveSessionId(sessionId);
-    isFirstPromptInSession = true;
-
-    return { success: true, sessionId };
+    return { success: true, sessionId: lastSessionId };
   } catch (e: any) {
+    logger.error('SESSION', 'Failed to create session:', e.message);
     return { success: false, error: e.message };
   }
 });

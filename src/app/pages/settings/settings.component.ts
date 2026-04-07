@@ -85,6 +85,24 @@ interface Settings {
           {{ statusMessage }}
         </p>
       </div>
+
+      <!-- Logs section -->
+      <div class="settings-card" style="margin-top: 24px;">
+        <div class="logs-header">
+          <h2>Logs</h2>
+          <div class="logs-actions">
+            <select [(ngModel)]="selectedLogDate" (ngModelChange)="loadLogs($event)">
+              <option *ngFor="let f of logFiles" [value]="f.date">{{ f.date }} ({{ formatSize(f.size) }})</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" (click)="loadLogs()">Refresh</button>
+            <button class="btn btn-secondary btn-sm" (click)="copyLogs()">Copy</button>
+          </div>
+        </div>
+        <div class="log-path" *ngIf="logDir">Log directory: {{ logDir }}</div>
+        <pre class="log-viewer" *ngIf="logContent">{{ logContent }}</pre>
+        <p class="log-empty" *ngIf="!logContent && logFiles.length > 0">No log entries for this date.</p>
+        <p class="log-empty" *ngIf="logFiles.length === 0">No logs yet. Logs are created when you start chatting.</p>
+      </div>
     </div>
   `,
   styles: [`
@@ -210,6 +228,63 @@ interface Settings {
       background: var(--error-bg);
       color: var(--error-text);
     }
+
+    /* ── Logs ── */
+    .logs-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .logs-header h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0;
+    }
+    .logs-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .logs-actions select {
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      background: var(--input-bg);
+      color: var(--text-primary);
+    }
+    .btn-sm {
+      padding: 5px 12px !important;
+      font-size: 12px !important;
+    }
+    .log-path {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      word-break: break-all;
+    }
+    .log-viewer {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 11px;
+      line-height: 1.5;
+      max-height: 400px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--text-secondary);
+      font-family: 'SF Mono', 'Consolas', 'Courier New', monospace;
+    }
+    .log-empty {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 20px;
+    }
   `],
 })
 export class SettingsComponent implements OnInit {
@@ -227,6 +302,12 @@ export class SettingsComponent implements OnInit {
   customModelId = '';
   isCustomModel = false;
 
+  // Logs
+  logContent = '';
+  logFiles: { date: string; size: number }[] = [];
+  selectedLogDate = '';
+  logDir = '';
+
   onModelChange(value: string) {
     if (value === 'custom') {
       this.isCustomModel = true;
@@ -240,6 +321,7 @@ export class SettingsComponent implements OnInit {
 
   ngOnInit() {
     this.load();
+    this.loadLogs();
   }
 
   async load() {
@@ -303,5 +385,32 @@ export class SettingsComponent implements OnInit {
       this.statusError = true;
     }
     this.testing = false;
+  }
+
+  async loadLogs(date?: string) {
+    try {
+      if (!(window as any).electronAPI?.getLogs) return;
+      const result = await window.electronAPI.getLogs(date);
+      this.logContent = result.content;
+      this.logFiles = result.files;
+      this.logDir = result.logDir;
+      if (!this.selectedLogDate && result.files.length > 0) {
+        this.selectedLogDate = result.files[0].date;
+      }
+    } catch {}
+  }
+
+  copyLogs() {
+    if (this.logContent) {
+      navigator.clipboard.writeText(this.logContent);
+      this.statusMessage = 'Logs copied to clipboard.';
+      this.statusError = false;
+    }
+  }
+
+  formatSize(bytes: number): string {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
 }

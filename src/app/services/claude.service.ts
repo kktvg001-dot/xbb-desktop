@@ -35,6 +35,8 @@ declare global {
       saveConversation: (conv: ConversationEntry) => Promise<any>;
       deleteConversation: (id: string) => Promise<any>;
       claudeNewSession: (workDir: string, resumeSessionId?: string) => Promise<{ success: boolean; sessionId?: string; error?: string }>;
+      getLogs: (date?: string) => Promise<{ content: string; files: { date: string; size: number }[]; logDir: string }>;
+      getLogDir: () => Promise<string>;
     };
   }
 }
