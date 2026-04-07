@@ -644,8 +644,9 @@ ipcMain.handle('claude-chat', async (_event, message: string, workDir: string, i
         ANTHROPIC_AUTH_TOKEN: CONFIG.apiKey,
       });
 
-      // Create fresh session (don't try resume — it causes issues)
-      const sessionId = await acpConnection.newSession(targetDir);
+      // Try to resume previous session, fall back to fresh if it fails
+      const savedSession = loadSessionId();
+      const sessionId = await acpConnection.newSession(targetDir, savedSession || undefined);
       lastSessionId = sessionId;
       saveSessionId(sessionId);
       isFirstPromptInSession = true;
