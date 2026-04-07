@@ -5,7 +5,7 @@ import * as path from 'path';
 import * as os from 'os';
 
 // ACP package (same as AionUI uses)
-const CLAUDE_ACP_PACKAGE = '@zed-industries/claude-agent-acp@0.21.0';
+const CLAUDE_ACP_PACKAGE = '@agentclientprotocol/claude-agent-acp@latest';
 
 interface AcpMessage {
   jsonrpc: '2.0';
@@ -115,10 +115,15 @@ export class AcpConnection {
       this.pendingRequests.clear();
     });
 
-    // Initialize protocol
+    // Initialize protocol (matches AionUI format)
     await this.sendRequest('initialize', {
-      clientInfo: { name: 'xbb-desktop', version: '1.0.0' },
-      protocolVersion: '0.1',
+      protocolVersion: 1,
+      clientCapabilities: {
+        fs: {
+          readTextFile: true,
+          writeTextFile: true,
+        },
+      },
     });
   }
 
