@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as https from 'https';
-import { AcpConnection } from './acp';
+import { AcpConnection, StreamChunk } from './acp';
 
 // ============ GLOBAL ERROR HANDLERS ============
 process.on('uncaughtException', (err) => {
@@ -185,7 +185,7 @@ app.on('before-quit', () => {
   isQuitting = true;
   // Tear down ACP connection on quit
   if (acpConnection) {
-    acpConnection.disconnect();
+    acpConnection.disconnect().catch(() => {});
     acpConnection = null;
   }
 });
@@ -528,22 +528,33 @@ ipcMain.handle('claude-connect', async (_, workDir: string) => {
 
     // Tear down existing connection if any
     if (acpConnection) {
-      acpConnection.disconnect();
+      await acpConnection.disconnect();
       acpConnection = null;
     }
 
     acpConnection = new AcpConnection();
 
-    // Wire up streaming to renderer
-    acpConnection.setUpdateHandler((msg) => {
-      mainWindow?.webContents.send('claude-stream', msg);
-    });
+    // Wire up streaming — send clean typed chunks to renderer
+    acpConnection.onStreamChunk = (chunk: StreamChunk) => {
+      mainWindow?.webContents.send('claude-stream', chunk);
+    };
 
-    acpConnection.setErrorHandler((err) => {
+    acpConnection.onError = (err: string) => {
       mainWindow?.webContents.send('claude-stream', { type: 'error', content: err });
-    });
+    };
 
-    await acpConnection.connect(targetDir);
+    acpConnection.onDisconnect = (info) => {
+      mainWindow?.webContents.send('claude-stream', {
+        type: 'error',
+        content: `ACP process disconnected (code: ${info.code}, signal: ${info.signal})`,
+      });
+    };
+
+    // Connect with API keys injected into spawn environment
+    await acpConnection.connect(targetDir, {
+      ANTHROPIC_BASE_URL: CONFIG.apiBaseUrl,
+      ANTHROPIC_AUTH_TOKEN: CONFIG.apiKey,
+    });
 
     // Try to resume previous session, or create new one
     const savedSession = loadSessionId();
@@ -559,7 +570,7 @@ ipcMain.handle('claude-connect', async (_, workDir: string) => {
 
 ipcMain.handle('claude-disconnect', async () => {
   if (acpConnection) {
-    acpConnection.disconnect();
+    await acpConnection.disconnect();
     acpConnection = null;
   }
   return { success: true };
@@ -567,7 +578,7 @@ ipcMain.handle('claude-disconnect', async () => {
 
 ipcMain.handle('claude-cancel', async () => {
   if (acpConnection && acpConnection.isConnected()) {
-    await acpConnection.cancel();
+    acpConnection.cancelPrompt();
     return { success: true };
   }
   return { success: false, error: 'No active connection' };
@@ -587,15 +598,27 @@ ipcMain.handle('claude-chat', async (_event, message: string, workDir: string) =
     if (!acpConnection || !acpConnection.isConnected()) {
       acpConnection = new AcpConnection();
 
-      acpConnection.setUpdateHandler((msg) => {
-        mainWindow?.webContents.send('claude-stream', msg);
-      });
+      // Wire up streaming — clean typed chunks to renderer
+      acpConnection.onStreamChunk = (chunk: StreamChunk) => {
+        mainWindow?.webContents.send('claude-stream', chunk);
+      };
 
-      acpConnection.setErrorHandler((err) => {
+      acpConnection.onError = (err: string) => {
         mainWindow?.webContents.send('claude-stream', { type: 'error', content: err });
-      });
+      };
 
-      await acpConnection.connect(targetDir);
+      acpConnection.onDisconnect = (info) => {
+        mainWindow?.webContents.send('claude-stream', {
+          type: 'error',
+          content: `ACP process disconnected (code: ${info.code}, signal: ${info.signal})`,
+        });
+      };
+
+      // Connect with API keys in spawn environment
+      await acpConnection.connect(targetDir, {
+        ANTHROPIC_BASE_URL: CONFIG.apiBaseUrl,
+        ANTHROPIC_AUTH_TOKEN: CONFIG.apiKey,
+      });
 
       // Resume or new session
       const savedSession = loadSessionId();
@@ -604,9 +627,11 @@ ipcMain.handle('claude-chat', async (_event, message: string, workDir: string) =
       saveSessionId(sessionId);
     }
 
-    // Send the prompt — ACP streams updates via the update handler
-    await acpConnection.prompt(message);
+    // Send the prompt — ACP streams updates via onStreamChunk callback
+    await acpConnection.sendPrompt(message);
 
+    // Signal completion to renderer
+    mainWindow?.webContents.send('claude-stream', { type: 'done' });
     mainWindow?.webContents.send('claude-stream-end', { code: 0 });
     return { success: true, sessionId: lastSessionId };
   } catch (e: any) {
