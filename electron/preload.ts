@@ -38,4 +38,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteConversation: (id: string) => ipcRenderer.invoke('delete-conversation', id),
   // Session management for conversation switching
   claudeNewSession: (workDir: string, resumeSessionId?: string) => ipcRenderer.invoke('claude-new-session', workDir, resumeSessionId),
+  // File tree
+  listDirectory: (dirPath: string) => ipcRenderer.invoke('list-directory', dirPath),
 });

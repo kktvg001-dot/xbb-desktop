@@ -1,6 +1,16 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { OpenclawService, OpenclawStatus } from '../../services/openclaw.service';
+
+interface TreeNode {
+  name: string;
+  isDirectory: boolean;
+  path: string;
+  children?: TreeNode[];
+  expanded?: boolean;
+  loading?: boolean;
+  depth: number;
+}
 
 @Component({
   selector: 'app-status',
@@ -62,6 +72,29 @@ import { OpenclawService, OpenclawStatus } from '../../services/openclaw.service
         <h2>Raw Output</h2>
         <pre>{{ status?.raw }}</pre>
       </div>
+
+      <div class="file-tree-section">
+        <h2>Workspace Files</h2>
+        <p class="tree-path" *ngIf="workspacePath">{{ workspacePath }}</p>
+        <div class="file-tree" *ngIf="treeNodes.length > 0">
+          <ng-container *ngFor="let node of flattenedTree">
+            <div class="tree-node"
+                 [style.padding-left.px]="node.depth * 20 + 8"
+                 (click)="toggleNode(node)"
+                 [class.folder]="node.isDirectory"
+                 [class.file]="!node.isDirectory">
+              <span class="tree-icon" *ngIf="node.isDirectory">
+                {{ node.expanded ? '\uD83D\uDCC2' : '\uD83D\uDCC1' }}
+              </span>
+              <span class="tree-icon" *ngIf="!node.isDirectory">\uD83D\uDCC4</span>
+              <span class="tree-name">{{ node.name }}</span>
+              <span class="tree-loading" *ngIf="node.loading">...</span>
+            </div>
+          </ng-container>
+        </div>
+        <p class="tree-empty" *ngIf="treeNodes.length === 0 && !treeLoading">No files found.</p>
+        <p class="tree-empty" *ngIf="treeLoading">Loading...</p>
+      </div>
     </div>
   `,
   styles: [`
@@ -78,10 +111,10 @@ import { OpenclawService, OpenclawStatus } from '../../services/openclaw.service
     .page-header h1 {
       font-size: 24px;
       margin: 0;
-      color: #1a1a2e;
+      color: var(--text-heading);
     }
     .refresh-btn {
-      background: #00a884;
+      background: var(--accent);
       color: #fff;
       border: none;
       padding: 8px 20px;
@@ -100,13 +133,13 @@ import { OpenclawService, OpenclawStatus } from '../../services/openclaw.service
       margin-bottom: 32px;
     }
     .status-card {
-      background: #fff;
+      background: var(--card-bg);
       border-radius: 10px;
       padding: 20px;
       display: flex;
       align-items: center;
       gap: 16px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      box-shadow: 0 1px 4px var(--card-shadow);
     }
     .status-dot {
       width: 16px;
@@ -129,24 +162,24 @@ import { OpenclawService, OpenclawStatus } from '../../services/openclaw.service
     .status-info h3 {
       margin: 0 0 4px;
       font-size: 13px;
-      color: #888;
+      color: var(--text-muted);
       font-weight: 500;
     }
     .status-value {
       margin: 0;
       font-size: 16px;
       font-weight: 700;
-      color: #333;
+      color: var(--text-primary);
     }
     .status-value.connected {
-      color: #2e7d32;
+      color: var(--success-text);
     }
     .actions-section {
       margin-bottom: 32px;
     }
     .actions-section h2 {
       font-size: 18px;
-      color: #1a1a2e;
+      color: var(--text-heading);
       margin: 0 0 16px;
     }
     .action-buttons {
@@ -166,37 +199,93 @@ import { OpenclawService, OpenclawStatus } from '../../services/openclaw.service
       cursor: not-allowed;
     }
     .btn-primary {
-      background: #00a884;
+      background: var(--accent);
       color: #fff;
     }
     .btn-secondary {
-      background: #e0e0e0;
-      color: #333;
+      background: var(--btn-secondary-bg);
+      color: var(--btn-secondary-text);
     }
     .action-result {
       margin-top: 12px;
       font-size: 13px;
-      color: #2e7d32;
+      color: var(--success-text);
     }
     .action-result.error {
-      color: #d32f2f;
+      color: var(--error-text);
     }
     .raw-output {
       margin-top: 24px;
     }
     .raw-output h2 {
       font-size: 18px;
-      color: #1a1a2e;
+      color: var(--text-heading);
       margin: 0 0 12px;
     }
     .raw-output pre {
-      background: #1a1a2e;
+      background: var(--bg-code);
       color: #e0e0e0;
       padding: 16px;
       border-radius: 8px;
       font-size: 12px;
       overflow-x: auto;
       line-height: 1.5;
+    }
+    .file-tree-section {
+      margin-top: 32px;
+    }
+    .file-tree-section h2 {
+      font-size: 18px;
+      color: var(--text-heading);
+      margin: 0 0 8px;
+    }
+    .tree-path {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 0 0 12px;
+      font-family: monospace;
+    }
+    .file-tree {
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 8px 0;
+      box-shadow: 0 1px 4px var(--card-shadow);
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .tree-node {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      font-size: 13px;
+      color: var(--text-primary);
+      cursor: default;
+      user-select: none;
+    }
+    .tree-node.folder {
+      cursor: pointer;
+    }
+    .tree-node.folder:hover {
+      background: var(--bg-primary);
+    }
+    .tree-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .tree-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tree-loading {
+      font-size: 11px;
+      color: var(--text-faint);
+    }
+    .tree-empty {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin: 8px 0 0;
     }
   `],
 })
@@ -208,10 +297,84 @@ export class StatusComponent implements OnInit {
   actionError = false;
   agentCount = '--';
 
-  constructor(private openclaw: OpenclawService) {}
+  // File tree
+  treeNodes: TreeNode[] = [];
+  treeLoading = false;
+  workspacePath = '';
+
+  private static readonly MAX_DEPTH = 3;
+
+  constructor(private openclaw: OpenclawService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.refresh();
+    this.loadWorkspaceTree();
+  }
+
+  get flattenedTree(): TreeNode[] {
+    const result: TreeNode[] = [];
+    const walk = (nodes: TreeNode[]) => {
+      for (const node of nodes) {
+        result.push(node);
+        if (node.isDirectory && node.expanded && node.children) {
+          walk(node.children);
+        }
+      }
+    };
+    walk(this.treeNodes);
+    return result;
+  }
+
+  async loadWorkspaceTree() {
+    this.treeLoading = true;
+    try {
+      const config = await (window as any).electronAPI.getConfig();
+      this.workspacePath = config.defaultWorkspace || config.homeDir;
+      const items = await (window as any).electronAPI.listDirectory(this.workspacePath);
+      this.treeNodes = (items || []).map((item: any) => ({
+        ...item,
+        depth: 0,
+        expanded: false,
+        loading: false,
+        children: undefined,
+      }));
+    } catch {
+      this.treeNodes = [];
+    }
+    this.treeLoading = false;
+    this.cdr.detectChanges();
+  }
+
+  async toggleNode(node: TreeNode) {
+    if (!node.isDirectory) return;
+
+    if (node.expanded) {
+      node.expanded = false;
+      return;
+    }
+
+    if (node.depth >= StatusComponent.MAX_DEPTH - 1) return;
+
+    if (!node.children) {
+      node.loading = true;
+      this.cdr.detectChanges();
+      try {
+        const items = await (window as any).electronAPI.listDirectory(node.path);
+        node.children = (items || []).map((item: any) => ({
+          ...item,
+          depth: node.depth + 1,
+          expanded: false,
+          loading: false,
+          children: undefined,
+        }));
+      } catch {
+        node.children = [];
+      }
+      node.loading = false;
+    }
+
+    node.expanded = true;
+    this.cdr.detectChanges();
   }
 
   async refresh() {

@@ -749,6 +749,28 @@ ipcMain.handle('delete-conversation', async (_, id: string) => {
   return { success: true };
 });
 
+// ============ IPC: LIST DIRECTORY (file tree) ============
+
+ipcMain.handle('list-directory', async (_, dirPath: string) => {
+  try {
+    const items = fs.readdirSync(dirPath, { withFileTypes: true });
+    return items
+      .filter(item => !item.name.startsWith('.'))
+      .map(item => ({
+        name: item.name,
+        isDirectory: item.isDirectory(),
+        path: path.join(dirPath, item.name),
+      }))
+      .sort((a, b) => {
+        if (a.isDirectory && !b.isDirectory) return -1;
+        if (!a.isDirectory && b.isDirectory) return 1;
+        return a.name.localeCompare(b.name);
+      });
+  } catch {
+    return [];
+  }
+});
+
 // ============ IPC: NEW SESSION (for conversation switching) ============
 
 ipcMain.handle('claude-new-session', async (_, workDir: string, resumeSessionId?: string) => {
