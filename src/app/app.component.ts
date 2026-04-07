@@ -12,46 +12,25 @@ import { Subscription, filter } from 'rxjs';
     <div class="app-layout">
       <nav class="sidebar" *ngIf="showSidebar">
         <div class="sidebar-header">
-          <div class="logo">
-            <span class="logo-icon">&#9672;</span>
-            <span class="logo-text">OpenClaw</span>
-          </div>
+          <span class="logo-text">OpenClaw</span>
+          <button class="menu-btn" (click)="showMenu = !showMenu" title="Menu">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3" r="1.5" fill="currentColor"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/><circle cx="8" cy="13" r="1.5" fill="currentColor"/></svg>
+          </button>
         </div>
-        <ul class="nav-list">
-          <li *ngIf="showSetupLink">
-            <a routerLink="/setup" routerLinkActive="active" class="nav-item">
-              <span class="nav-icon">&#9881;</span>
-              <span class="nav-label">Setup</span>
-            </a>
-          </li>
-          <li>
-            <a routerLink="/chat" routerLinkActive="active" class="nav-item">
-              <span class="nav-icon">&#128172;</span>
-              <span class="nav-label">Chat</span>
-            </a>
-          </li>
-          <li>
-            <a routerLink="/status" routerLinkActive="active" class="nav-item">
-              <span class="nav-icon">&#9632;</span>
-              <span class="nav-label">Status</span>
-            </a>
-          </li>
-          <li>
-            <a routerLink="/tasks" routerLinkActive="active" class="nav-item">
-              <span class="nav-icon">&#9200;</span>
-              <span class="nav-label">Tasks</span>
-            </a>
-          </li>
-          <li>
-            <a routerLink="/settings" routerLinkActive="active" class="nav-item">
-              <span class="nav-icon">&#9998;</span>
-              <span class="nav-label">Settings</span>
-            </a>
-          </li>
-        </ul>
+        <div class="nav-menu" *ngIf="showMenu">
+          <a routerLink="/status" class="menu-item" (click)="showMenu = false">Status</a>
+          <a routerLink="/tasks" class="menu-item" (click)="showMenu = false">Tasks</a>
+          <a routerLink="/settings" class="menu-item" (click)="showMenu = false">Settings</a>
+          <a *ngIf="showSetupLink" routerLink="/setup" class="menu-item" (click)="showMenu = false">Setup</a>
+        </div>
+        <div class="sidebar-nav">
+          <a routerLink="/chat" routerLinkActive="active" class="nav-item">
+            Chat
+          </a>
+        </div>
         <div class="sidebar-footer">
           <button class="theme-toggle" (click)="toggleTheme()" [title]="isDarkTheme ? 'Switch to light mode' : 'Switch to dark mode'">
-            {{ isDarkTheme ? '\u2600\uFE0F' : '\uD83C\uDF19' }}
+            {{ isDarkTheme ? 'Light' : 'Dark' }}
           </button>
           <span class="version">v1.0.7</span>
         </div>
@@ -68,10 +47,8 @@ import { Subscription, filter } from 'rxjs';
       overflow: hidden;
     }
     .sidebar {
-      width: 200px;
-      background: var(--bg-sidebar);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      width: 260px;
+      background: var(--sidebar-bg);
       color: var(--sidebar-text);
       display: flex;
       flex-direction: column;
@@ -79,122 +56,107 @@ import { Subscription, filter } from 'rxjs';
       border-right: 1px solid var(--sidebar-border);
     }
     .sidebar-header {
-      padding: 20px 16px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       border-bottom: 1px solid var(--sidebar-border);
     }
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .logo-icon {
-      font-size: 22px;
-      background: var(--accent-gradient);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
     .logo-text {
-      font-size: 17px;
-      font-weight: 700;
-      background: var(--accent-gradient);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
       letter-spacing: -0.3px;
     }
-    .nav-list {
-      list-style: none;
-      margin: 0;
-      padding: 12px 8px;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      color: var(--sidebar-nav-text);
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 500;
-      transition: all 0.2s ease;
-      border-left: 3px solid transparent;
-      border-radius: 0 8px 8px 0;
-      position: relative;
-    }
-    .nav-item::after {
-      display: none;
-    }
-    .nav-item:hover {
-      background: var(--sidebar-nav-hover-bg);
-      color: var(--sidebar-nav-hover-text);
-      transform: translateX(2px);
-    }
-    .nav-item.active {
-      background: rgba(124, 92, 252, 0.1);
-      color: var(--accent);
-      border-left-color: var(--accent);
-      box-shadow: inset 0 0 16px rgba(124, 92, 252, 0.05);
-    }
-    .nav-icon {
-      font-size: 16px;
-      width: 28px;
-      height: 28px;
+    .menu-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 8px;
+    }
+    .menu-btn:hover {
       background: var(--bg-hover);
-      flex-shrink: 0;
-      transition: all 0.2s ease;
+      color: var(--text-primary);
     }
-    .nav-item:hover .nav-icon {
-      background: rgba(124, 92, 252, 0.15);
-      transform: scale(1.05);
+    .nav-menu {
+      position: absolute;
+      top: 48px;
+      right: auto;
+      left: 160px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px 0;
+      z-index: 100;
+      min-width: 140px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    .nav-item.active .nav-icon {
-      background: rgba(124, 92, 252, 0.2);
-      box-shadow: 0 0 10px rgba(124, 92, 252, 0.15);
+    .menu-item {
+      display: block;
+      padding: 8px 16px;
+      font-size: 13px;
+      color: var(--text-primary);
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .menu-item:hover {
+      background: var(--bg-hover);
+    }
+    .sidebar-nav {
+      padding: 8px 8px;
+      flex: 1;
+    }
+    .nav-item {
+      display: block;
+      padding: 8px 12px;
+      color: var(--sidebar-nav-text);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: 8px;
+    }
+    .nav-item:hover {
+      background: var(--sidebar-hover);
+      color: var(--text-primary);
+    }
+    .nav-item.active {
+      background: var(--sidebar-active);
+      color: var(--text-primary);
     }
     .sidebar-footer {
-      padding: 14px 12px;
+      padding: 12px 16px;
       border-top: 1px solid var(--sidebar-border);
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
     .theme-toggle {
-      background: var(--bg-hover);
-      border: 1px solid var(--sidebar-border);
-      border-radius: 20px;
-      padding: 6px 14px;
-      font-size: 14px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 12px;
       cursor: pointer;
-      line-height: 1;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      color: var(--text-secondary);
     }
     .theme-toggle:hover {
-      background: rgba(124, 92, 252, 0.1);
-      border-color: var(--accent);
-      box-shadow: 0 0 12px rgba(124, 92, 252, 0.1);
+      background: var(--bg-hover);
+      color: var(--text-primary);
     }
     .version {
       font-size: 11px;
-      color: var(--sidebar-version);
-      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
     }
     .main-content {
       flex: 1;
       overflow-y: auto;
       background: var(--bg-primary);
-      animation: fadeIn 0.3s ease;
+      animation: fadeIn 0.2s ease;
     }
     @keyframes fadeIn {
       from { opacity: 0; }
@@ -206,6 +168,7 @@ export class AppComponent implements OnInit, OnDestroy {
   showSidebar = true;
   showSetupLink = false;
   isDarkTheme = true;
+  showMenu = false;
   private routeSub!: Subscription;
 
   constructor(

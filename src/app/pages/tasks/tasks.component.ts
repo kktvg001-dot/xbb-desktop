@@ -88,10 +88,10 @@ interface ScheduledTask {
     .tasks-page {
       padding: 32px;
       max-width: 800px;
-      animation: tasksFadeIn 0.4s ease;
+      animation: tasksFadeIn 0.2s ease;
     }
     @keyframes tasksFadeIn {
-      from { opacity: 0; transform: translateY(8px); }
+      from { opacity: 0; transform: translateY(4px); }
       to { opacity: 1; transform: translateY(0); }
     }
     .page-header {
@@ -101,10 +101,11 @@ interface ScheduledTask {
       margin-bottom: 12px;
     }
     .page-header h1 {
-      font-size: 24px;
+      font-size: 22px;
       margin: 0;
       color: var(--text-heading);
-      letter-spacing: -0.5px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
     }
     .info-note {
       font-size: 13px;
@@ -112,34 +113,32 @@ interface ScheduledTask {
       margin: 0 0 24px;
     }
     .add-btn {
-      background: var(--accent-gradient);
-      color: #fff;
+      background: var(--accent);
+      color: var(--bg-primary);
       border: none;
       padding: 8px 20px;
-      border-radius: 10px;
+      border-radius: 8px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
     }
     .add-btn:hover {
-      box-shadow: 0 4px 16px var(--accent-glow);
-      transform: translateY(-1px);
+      background: var(--accent-hover);
     }
 
     /* Form */
     .task-form-card {
       background: var(--card-bg);
-      border-radius: 12px;
+      border-radius: 10px;
       padding: 24px;
       margin-bottom: 24px;
-      box-shadow: 0 1px 4px var(--card-shadow);
       border: 1px solid var(--border);
     }
     .task-form-card h2 {
       font-size: 18px;
       color: var(--text-heading);
       margin: 0 0 16px;
+      font-weight: 600;
     }
     .form-group {
       margin-bottom: 16px;
@@ -147,7 +146,7 @@ interface ScheduledTask {
     .form-group label {
       display: block;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 500;
       color: var(--text-secondary);
       margin-bottom: 6px;
     }
@@ -161,12 +160,10 @@ interface ScheduledTask {
       background: var(--input-bg);
       color: var(--text-primary);
       box-sizing: border-box;
-      transition: all 0.2s ease;
     }
     .form-input:focus {
       outline: none;
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-glow);
     }
     .form-textarea {
       resize: vertical;
@@ -185,12 +182,11 @@ interface ScheduledTask {
       cursor: not-allowed;
     }
     .btn-primary {
-      background: var(--accent-gradient);
-      color: #fff;
+      background: var(--accent);
+      color: var(--bg-primary);
     }
     .btn-primary:hover:not(:disabled) {
-      box-shadow: 0 4px 16px var(--accent-glow);
-      transform: translateY(-1px);
+      background: var(--accent-hover);
     }
 
     /* Task Cards */
@@ -201,15 +197,11 @@ interface ScheduledTask {
     }
     .task-card {
       background: var(--card-bg);
-      border-radius: 12px;
+      border-radius: 10px;
       padding: 20px;
-      box-shadow: 0 1px 4px var(--card-shadow);
       border: 1px solid var(--border);
-      transition: all 0.2s ease;
     }
     .task-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
       border-color: var(--border-hover);
     }
     .task-header {
@@ -222,6 +214,7 @@ interface ScheduledTask {
       margin: 0;
       font-size: 16px;
       color: var(--text-heading);
+      font-weight: 600;
     }
     .task-schedule {
       font-size: 12px;
@@ -260,12 +253,12 @@ interface ScheduledTask {
       color: var(--text-muted);
     }
     .status-running {
-      background: rgba(124, 92, 252, 0.1);
-      color: var(--accent);
+      background: var(--bg-hover);
+      color: var(--text-secondary);
     }
     .status-completed {
-      background: rgba(34, 197, 94, 0.1);
-      color: #22c55e;
+      background: rgba(16, 163, 127, 0.1);
+      color: #10a37f;
     }
     .status-failed {
       background: rgba(239, 68, 68, 0.1);
@@ -304,7 +297,7 @@ interface ScheduledTask {
       transition: 0.2s;
     }
     .toggle input:checked + .toggle-slider {
-      background: var(--accent);
+      background: #10a37f;
     }
     .toggle input:checked + .toggle-slider::before {
       transform: translateX(18px);

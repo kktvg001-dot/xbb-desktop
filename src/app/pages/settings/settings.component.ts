@@ -91,24 +91,23 @@ interface Settings {
     .settings-page {
       padding: 32px;
       max-width: 600px;
-      animation: settingsFadeIn 0.4s ease;
+      animation: settingsFadeIn 0.2s ease;
     }
     @keyframes settingsFadeIn {
-      from { opacity: 0; transform: translateY(8px); }
+      from { opacity: 0; transform: translateY(4px); }
       to { opacity: 1; transform: translateY(0); }
     }
     .settings-page h1 {
-      font-size: 24px;
+      font-size: 22px;
       margin: 0 0 24px;
       color: var(--text-heading);
-      font-weight: 700;
-      letter-spacing: -0.5px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
     }
     .settings-card {
       background: var(--card-bg);
-      border-radius: 14px;
+      border-radius: 12px;
       padding: 28px;
-      box-shadow: 0 1px 4px var(--card-shadow);
       border: 1px solid var(--border);
     }
     .form-group {
@@ -117,7 +116,7 @@ interface Settings {
     .form-group label {
       display: block;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 500;
       color: var(--text-secondary);
       margin-bottom: 6px;
     }
@@ -137,7 +136,6 @@ interface Settings {
     .form-group input:focus,
     .form-group select:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-glow);
     }
     .masked-input {
       display: flex;
@@ -148,22 +146,22 @@ interface Settings {
     }
     .toggle-btn {
       background: var(--btn-secondary-bg);
-      border: none;
+      border: 1px solid var(--border);
       border-radius: 8px;
       padding: 0 14px;
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 500;
       cursor: pointer;
       color: var(--text-secondary);
       white-space: nowrap;
     }
     .toggle-btn:hover {
-      opacity: 0.85;
+      background: var(--bg-hover);
     }
     .help-text {
       display: block;
       font-size: 12px;
-      color: var(--text-faint);
+      color: var(--text-muted);
       margin-top: 4px;
     }
     .form-actions {
@@ -184,16 +182,19 @@ interface Settings {
       cursor: not-allowed;
     }
     .btn-primary {
-      background: var(--accent-gradient);
-      color: #fff;
+      background: var(--accent);
+      color: var(--bg-primary);
     }
-    .btn-primary:hover {
-      box-shadow: 0 4px 16px var(--accent-glow);
-      transform: translateY(-1px);
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent-hover);
     }
     .btn-secondary {
       background: var(--btn-secondary-bg);
       color: var(--btn-secondary-text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--bg-hover);
     }
     .status-message {
       margin-top: 16px;

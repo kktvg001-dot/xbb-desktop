@@ -364,8 +364,8 @@ interface ChatMessage {
     }
 
     .conv-sidebar {
-      width: 250px;
-      min-width: 250px;
+      width: 260px;
+      min-width: 260px;
       background: var(--bg-sidebar);
       display: flex;
       flex-direction: column;
@@ -376,19 +376,18 @@ interface ChatMessage {
     .new-chat-btn {
       margin: 12px;
       padding: 10px 16px;
-      background: var(--accent-gradient);
-      color: #fff;
-      border: none;
-      border-radius: 10px;
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
       font-size: 14px;
-      font-weight: 600;
+      font-weight: 500;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: background 0.15s ease;
       flex-shrink: 0;
     }
     .new-chat-btn:hover {
-      box-shadow: 0 4px 16px var(--accent-glow);
-      transform: translateY(-1px);
+      background: var(--bg-hover);
     }
 
     .conv-list {
@@ -411,31 +410,26 @@ interface ChatMessage {
       align-items: center;
       padding: 8px 12px 8px 16px;
       cursor: pointer;
-      transition: all 0.15s ease;
-      border-left: 3px solid transparent;
+      transition: background 0.1s ease;
       position: relative;
-      border-radius: 0 8px 8px 0;
-      margin-right: 8px;
+      border-radius: 8px;
+      margin: 0 8px;
     }
     .conv-item:hover {
       background: var(--bg-hover);
     }
     .conv-item.conv-active {
-      background: rgba(124, 92, 252, 0.1);
-      border-left-color: var(--accent);
+      background: var(--bg-hover);
     }
 
     .conv-title {
       flex: 1;
       min-width: 0;
-      color: var(--text-secondary);
+      color: var(--text-primary);
       font-size: 13px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-    .conv-item.conv-active .conv-title {
-      color: var(--text-primary);
     }
 
     .conv-delete {
@@ -455,7 +449,7 @@ interface ChatMessage {
     }
     .conv-delete:hover {
       color: #ef4444;
-      background: rgba(239, 68, 68, 0.15);
+      background: rgba(239, 68, 68, 0.1);
     }
 
     .conv-empty {
@@ -494,11 +488,11 @@ interface ChatMessage {
         bottom: 0;
         z-index: 40;
         transform: translateX(-100%);
-        transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+        transition: transform 0.2s ease;
       }
       .conv-sidebar.conv-sidebar-open {
         transform: translateX(0);
-        box-shadow: 8px 0 24px rgba(0, 0, 0, 0.3);
+        box-shadow: 4px 0 16px rgba(0, 0, 0, 0.15);
       }
       .sidebar-toggle {
         display: flex;
@@ -512,7 +506,6 @@ interface ChatMessage {
       flex: 1;
       min-width: 0;
       background: var(--bg-primary);
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     /* ── Model selector header ── */
@@ -522,37 +515,36 @@ interface ChatMessage {
       gap: 8px;
       padding: 8px 16px;
       border-bottom: 1px solid var(--border);
-      background: var(--bg-secondary);
+      background: var(--bg-primary);
       flex-shrink: 0;
     }
 
     .model-select {
-      font-size: 12px;
+      font-size: 13px;
+      font-weight: 500;
       padding: 5px 24px 5px 10px;
       border-radius: 8px;
       border: 1px solid var(--border);
       background: var(--bg-input);
-      color: var(--text-secondary);
+      color: var(--text-primary);
       outline: none;
       cursor: pointer;
       appearance: none;
       -webkit-appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238888aa' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%239a9aaa' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 8px center;
-      transition: all 0.2s ease;
     }
     .model-select:hover {
       border-color: var(--border-hover);
     }
     .model-select:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 2px var(--accent-glow);
     }
 
     .model-custom-input {
-      font-size: 12px;
-      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-family: inherit;
       padding: 5px 10px;
       border-radius: 8px;
       border: 1px solid var(--border);
@@ -560,11 +552,9 @@ interface ChatMessage {
       color: var(--text-primary);
       outline: none;
       width: 180px;
-      transition: all 0.2s ease;
     }
     .model-custom-input:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 2px var(--accent-glow);
     }
 
     /* ── Messages area ── */
@@ -575,11 +565,11 @@ interface ChatMessage {
     }
 
     .messages-inner {
-      max-width: 800px;
+      max-width: 768px;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 24px;
     }
 
     /* ── Empty state ── */
@@ -590,55 +580,84 @@ interface ChatMessage {
       justify-content: center;
       height: 70vh;
       text-align: center;
-      animation: emptyFadeIn 0.5s ease;
+      animation: emptyFadeIn 0.3s ease;
     }
     @keyframes emptyFadeIn {
-      from { opacity: 0; transform: translateY(8px); }
+      from { opacity: 0; transform: translateY(4px); }
       to { opacity: 1; transform: translateY(0); }
     }
     .empty-logo {
-      width: 56px;
-      height: 56px;
-      border-radius: 16px;
-      background: var(--accent-gradient);
-      color: #fff;
-      font-size: 26px;
-      font-weight: 700;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-size: 22px;
+      font-weight: 400;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 24px;
-      box-shadow: 0 8px 24px var(--accent-glow);
+      margin-bottom: 20px;
     }
     .empty-state h2 {
-      font-size: 24px;
-      font-weight: 700;
+      font-size: 22px;
+      font-weight: 600;
       color: var(--text-primary);
-      margin: 0 0 24px;
-      letter-spacing: -0.5px;
+      margin: 0 0 8px;
+      letter-spacing: -0.3px;
+    }
+    .empty-desc {
+      color: var(--text-secondary);
+      font-size: 14px;
+      max-width: 480px;
+      line-height: 1.6;
+      margin: 0 0 28px;
     }
     .suggestions {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
       justify-content: center;
+      max-width: 520px;
     }
     .suggestion {
-      background: var(--bg-card);
+      background: var(--bg-primary);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px 18px;
+      border-radius: 20px;
+      padding: 8px 16px;
       font-size: 13px;
       color: var(--text-secondary);
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: background 0.1s ease;
     }
     .suggestion:hover {
-      border-color: var(--accent);
-      color: var(--text-primary);
       background: var(--bg-hover);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px var(--accent-glow);
+      color: var(--text-primary);
+    }
+
+    /* ── Follow-up suggestions ── */
+    .follow-ups {
+      max-width: 768px;
+      margin: 0 auto;
+      padding: 0 16px 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .follow-up-btn {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background 0.1s ease;
+    }
+    .follow-up-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
     }
 
     /* ── Message rows ── */
@@ -650,25 +669,25 @@ interface ChatMessage {
     /* ── User messages ── */
     .msg-user {
       align-items: flex-end;
-      animation: msgSlideInRight 0.3s ease;
+      animation: msgFadeIn 0.2s ease;
     }
-    @keyframes msgSlideInRight {
-      from { opacity: 0; transform: translateX(16px); }
-      to { opacity: 1; transform: translateX(0); }
+    @keyframes msgFadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .user-image {
       max-width: 250px;
       max-height: 200px;
       border-radius: 12px;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: opacity 0.15s ease;
       margin-bottom: 4px;
     }
-    .user-image:hover { opacity: 0.85; transform: scale(0.98); }
+    .user-image:hover { opacity: 0.85; }
     .image-lightbox {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.85);
+      background: rgba(0,0,0,0.8);
       backdrop-filter: blur(8px);
       display: flex;
       align-items: center;
@@ -683,31 +702,26 @@ interface ChatMessage {
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     }
     .user-bubble {
-      background: var(--accent-gradient);
-      color: #fff;
+      background: var(--bg-card);
+      color: var(--text-primary);
       padding: 10px 16px;
       border-radius: 18px 18px 4px 18px;
-      font-size: 14px;
+      font-size: 15px;
       line-height: 1.6;
       max-width: 75%;
       white-space: pre-wrap;
       word-break: break-word;
-      box-shadow: 0 2px 8px var(--accent-glow);
     }
 
     /* ── Assistant messages ── */
     .msg-assistant {
       align-items: flex-start;
       gap: 8px;
-      animation: msgSlideInLeft 0.3s ease;
-    }
-    @keyframes msgSlideInLeft {
-      from { opacity: 0; transform: translateX(-16px); }
-      to { opacity: 1; transform: translateX(0); }
+      animation: msgFadeIn 0.2s ease;
     }
 
     .assistant-text {
-      font-size: 14px;
+      font-size: 15px;
       line-height: 1.7;
       color: var(--text-primary);
       max-width: 100%;
@@ -724,19 +738,19 @@ interface ChatMessage {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: #1a1a30;
+      background: #1a1a1a;
       padding: 8px 14px;
-      border-radius: 10px 10px 0 0;
+      border-radius: 8px 8px 0 0;
       font-size: 12px;
-      color: var(--text-muted);
+      color: #999;
       border: 1px solid var(--border);
       border-bottom: none;
     }
     .code-lang { font-family: 'JetBrains Mono', monospace; }
     .copy-btn {
       background: none;
-      border: 1px solid var(--border);
-      color: var(--text-muted);
+      border: 1px solid #555;
+      color: #999;
       padding: 3px 10px;
       border-radius: 6px;
       cursor: pointer;
@@ -744,14 +758,14 @@ interface ChatMessage {
       font-family: inherit;
       transition: all 0.15s ease;
     }
-    .copy-btn:hover { color: #fff; border-color: var(--accent); }
-    .copy-btn.copied { color: var(--accent); border-color: var(--accent); }
+    .copy-btn:hover { color: #fff; border-color: #888; }
+    .copy-btn.copied { color: #10a37f; border-color: #10a37f; }
     pre.code-block {
-      background: #0d0d1a;
+      background: #1e1e1e;
       color: #e0e0e0;
       padding: 16px;
       margin: 0;
-      border-radius: 0 0 10px 10px;
+      border-radius: 0 0 8px 8px;
       overflow-x: auto;
       font-size: 13px;
       line-height: 1.6;
@@ -772,7 +786,7 @@ interface ChatMessage {
     }
     .thinking-label {
       font-weight: 600;
-      color: var(--accent);
+      color: var(--text-secondary);
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -787,7 +801,7 @@ interface ChatMessage {
     .tool-summary {
       background: var(--bg-card);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 8px;
       overflow: hidden;
       font-size: 13px;
       max-width: 100%;
@@ -800,13 +814,13 @@ interface ChatMessage {
       cursor: pointer;
       user-select: none;
       background: var(--bg-card);
-      transition: background 0.15s ease;
+      transition: background 0.1s ease;
     }
     .tool-summary-header:hover {
       background: var(--bg-hover);
     }
     .tool-summary-text {
-      font-weight: 600;
+      font-weight: 500;
       color: var(--text-primary);
       flex: 1;
       min-width: 0;
@@ -831,15 +845,13 @@ interface ChatMessage {
     .tool-card {
       background: var(--bg-card);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 8px;
       overflow: hidden;
       font-size: 13px;
       max-width: 100%;
-      transition: border-color 0.2s ease;
     }
     .tool-card.tool-running {
-      border-color: #f59e0b;
-      box-shadow: 0 0 12px rgba(245, 158, 11, 0.1);
+      border-color: var(--border-hover);
     }
     .tool-card.tool-done {
       border-color: var(--border);
@@ -852,7 +864,7 @@ interface ChatMessage {
       cursor: pointer;
       user-select: none;
       background: var(--bg-card);
-      transition: background 0.15s ease;
+      transition: background 0.1s ease;
     }
     .tool-header:hover {
       background: var(--bg-hover);
@@ -863,12 +875,12 @@ interface ChatMessage {
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--accent);
+      color: var(--text-secondary);
       font-size: 12px;
       flex-shrink: 0;
     }
     .tool-card.tool-running .tool-icon {
-      color: #f59e0b;
+      color: var(--text-muted);
     }
     .spinner {
       animation: spin 1s linear infinite;
@@ -878,7 +890,7 @@ interface ChatMessage {
       to { transform: rotate(360deg); }
     }
     .tool-name {
-      font-weight: 600;
+      font-weight: 500;
       color: var(--text-primary);
       flex-shrink: 0;
     }
@@ -910,7 +922,7 @@ interface ChatMessage {
       background: var(--bg-input);
     }
     .tool-output {
-      background: var(--bg-secondary);
+      background: var(--bg-primary);
       border-top: 1px solid var(--border);
     }
     .tool-body pre {
@@ -928,7 +940,7 @@ interface ChatMessage {
 
     /* ── File change tool card ── */
     .tool-card.tool-file-change.tool-done {
-      border-color: rgba(34, 197, 94, 0.3);
+      border-color: var(--border);
     }
 
     /* ── Diff viewer ── */
@@ -961,8 +973,8 @@ interface ChatMessage {
       flex-shrink: 0;
     }
     .diff-file-icon.diff-file-created {
-      background: #22c55e;
-      color: #052e16;
+      background: #10a37f;
+      color: #fff;
     }
     .diff-file-path {
       overflow: hidden;
@@ -996,12 +1008,12 @@ interface ChatMessage {
       min-height: 20px;
     }
     .diff-line.diff-removed {
-      background: rgba(239, 68, 68, 0.1);
-      color: #fca5a5;
+      background: rgba(239, 68, 68, 0.08);
+      color: #f87171;
     }
     .diff-line.diff-added {
-      background: rgba(34, 197, 94, 0.1);
-      color: #86efac;
+      background: rgba(16, 163, 127, 0.08);
+      color: #10a37f;
     }
     .diff-prefix {
       width: 16px;
@@ -1013,7 +1025,7 @@ interface ChatMessage {
       color: #ef4444;
     }
     .diff-line.diff-added .diff-prefix {
-      color: #22c55e;
+      color: #10a37f;
     }
     .diff-text {
       white-space: pre-wrap;
@@ -1027,9 +1039,9 @@ interface ChatMessage {
       color: #ef4444;
       font-size: 13px;
       padding: 8px 12px;
-      background: rgba(239, 68, 68, 0.1);
+      background: var(--error-bg);
       border-radius: 8px;
-      border: 1px solid rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.15);
     }
 
     /* ── Thinking dots ── */
@@ -1041,7 +1053,7 @@ interface ChatMessage {
     .thinking-dots .dot {
       width: 8px;
       height: 8px;
-      background: var(--accent);
+      background: var(--text-muted);
       border-radius: 50%;
       animation: dotBounce 1.2s infinite;
     }
@@ -1049,7 +1061,7 @@ interface ChatMessage {
     .thinking-dots .dot:nth-child(3) { animation-delay: 0.3s; }
     @keyframes dotBounce {
       0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
-      40% { transform: translateY(-6px); opacity: 1; }
+      40% { transform: translateY(-4px); opacity: 1; }
     }
 
     /* ── Drag-drop overlay ── */
@@ -1059,8 +1071,8 @@ interface ChatMessage {
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(124, 92, 252, 0.08);
-      backdrop-filter: blur(4px);
+      background: rgba(0, 0, 0, 0.05);
+      backdrop-filter: blur(2px);
       z-index: 100;
       display: flex;
       align-items: center;
@@ -1068,18 +1080,17 @@ interface ChatMessage {
     }
     .drop-overlay-content {
       padding: 40px 60px;
-      border: 3px dashed var(--accent);
-      border-radius: 20px;
-      font-size: 18px;
-      font-weight: 600;
-      color: var(--accent);
+      border: 2px dashed var(--border-hover);
+      border-radius: 16px;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-secondary);
       background: var(--glass-bg);
-      backdrop-filter: blur(12px);
     }
 
     /* ── Image preview ── */
     .image-preview-wrapper {
-      max-width: 800px;
+      max-width: 768px;
       margin: 0 auto 8px;
     }
     .image-preview {
@@ -1110,7 +1121,6 @@ interface ChatMessage {
       align-items: center;
       justify-content: center;
       padding: 0;
-      transition: background 0.15s;
     }
     .image-remove:hover {
       background: rgba(239, 68, 68, 0.8);
@@ -1123,30 +1133,28 @@ interface ChatMessage {
       flex-shrink: 0;
     }
     .input-area {
-      max-width: 800px;
+      max-width: 768px;
       margin: 0 auto;
       display: flex;
       align-items: flex-end;
-      background: var(--bg-card);
+      background: var(--bg-input);
       border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 6px 6px 6px 16px;
-      transition: all 0.25s ease;
-      backdrop-filter: blur(8px);
+      border-radius: 24px;
+      padding: 6px 6px 6px 18px;
+      transition: border-color 0.15s ease;
     }
     .input-area.focused {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 20px var(--accent-glow);
+      border-color: var(--border-hover);
     }
     .input-area textarea {
       flex: 1;
       border: none;
       outline: none;
       resize: none;
-      font-size: 14px;
+      font-size: 15px;
       font-family: inherit;
       line-height: 1.5;
-      padding: 6px 0;
+      padding: 8px 0;
       max-height: 200px;
       background: transparent;
       color: var(--text-primary);
@@ -1163,8 +1171,8 @@ interface ChatMessage {
       height: 34px;
       border-radius: 50%;
       border: none;
-      background: var(--accent-gradient);
-      color: #fff;
+      background: var(--accent);
+      color: var(--bg-primary);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -1172,18 +1180,16 @@ interface ChatMessage {
       flex-shrink: 0;
       opacity: 0;
       transform: scale(0.8);
-      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: all 0.15s ease;
       pointer-events: none;
     }
     .send-button.visible {
       opacity: 1;
       transform: scale(1);
       pointer-events: auto;
-      box-shadow: 0 2px 8px var(--accent-glow);
     }
     .send-button:hover:not(:disabled) {
-      transform: scale(1.05);
-      box-shadow: 0 4px 16px var(--accent-glow-strong);
+      background: var(--accent-hover);
     }
     .send-button:disabled {
       opacity: 0.3;
@@ -1203,14 +1209,13 @@ interface ChatMessage {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: var(--accent);
+      background: var(--text-muted);
       animation: pulse 1.5s infinite;
-      box-shadow: 0 0 8px var(--accent-glow);
       flex-shrink: 0;
     }
     @keyframes pulse {
-      0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--accent-glow); }
-      50% { opacity: 0.4; box-shadow: 0 0 16px var(--accent-glow-strong); }
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
     }
 
     /* ── Stop button ── */
@@ -1218,18 +1223,16 @@ interface ChatMessage {
       width: 34px;
       height: 34px;
       border-radius: 50%;
-      background: #ef4444;
+      background: var(--accent);
       border: none;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transition: background 0.15s;
     }
     .stop-btn:hover {
-      background: #dc2626;
-      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+      background: var(--accent-hover);
     }
 
     /* ── Mic button ── */
@@ -1245,7 +1248,6 @@ interface ChatMessage {
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transition: color 0.15s, background 0.15s;
     }
     .mic-btn:hover {
       color: var(--text-secondary);
@@ -1263,7 +1265,7 @@ interface ChatMessage {
 
     /* ── Input hints ── */
     .input-hints {
-      max-width: 800px;
+      max-width: 768px;
       margin: 4px auto 0;
       display: flex;
       justify-content: flex-end;
@@ -1279,7 +1281,6 @@ interface ChatMessage {
       gap: 4px;
       padding: 2px 6px;
       border-radius: 4px;
-      transition: color 0.15s, background 0.15s;
     }
     .shortcuts-hint:hover {
       color: var(--text-secondary);
@@ -1302,7 +1303,7 @@ interface ChatMessage {
     .shortcuts-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0,0,0,0.5);
       backdrop-filter: blur(4px);
       display: flex;
       align-items: center;
@@ -1312,10 +1313,10 @@ interface ChatMessage {
     .shortcuts-dialog {
       background: var(--bg-card);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: 12px;
       width: 380px;
       max-width: 90vw;
-      box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.2);
       overflow: hidden;
     }
     .shortcuts-header {
@@ -1328,9 +1329,8 @@ interface ChatMessage {
     .shortcuts-header h3 {
       margin: 0;
       font-size: 16px;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--text-primary);
-      letter-spacing: -0.3px;
     }
     .shortcuts-close {
       background: none;
@@ -1379,7 +1379,7 @@ interface ChatMessage {
     .queued-tag {
       display: inline-block;
       font-size: 10px;
-      background: rgba(255,255,255,0.3);
+      background: rgba(0,0,0,0.1);
       border-radius: 8px;
       padding: 1px 6px;
       margin-left: 6px;
@@ -1387,9 +1387,9 @@ interface ChatMessage {
     }
     .queued-badge {
       font-size: 11px;
-      color: var(--accent);
-      background: rgba(124, 92, 252, 0.1);
-      border: 1px solid rgba(124, 92, 252, 0.2);
+      color: var(--text-secondary);
+      background: var(--bg-hover);
+      border: 1px solid var(--border);
       border-radius: 10px;
       padding: 2px 8px;
       white-space: nowrap;

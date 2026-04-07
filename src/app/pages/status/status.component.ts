@@ -101,10 +101,10 @@ interface TreeNode {
     .status-page {
       padding: 32px;
       max-width: 800px;
-      animation: statusFadeIn 0.4s ease;
+      animation: statusFadeIn 0.2s ease;
     }
     @keyframes statusFadeIn {
-      from { opacity: 0; transform: translateY(8px); }
+      from { opacity: 0; transform: translateY(4px); }
       to { opacity: 1; transform: translateY(0); }
     }
     .page-header {
@@ -114,25 +114,24 @@ interface TreeNode {
       margin-bottom: 28px;
     }
     .page-header h1 {
-      font-size: 24px;
+      font-size: 22px;
       margin: 0;
       color: var(--text-heading);
-      letter-spacing: -0.5px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
     }
     .refresh-btn {
-      background: var(--accent-gradient);
-      color: #fff;
+      background: var(--accent);
+      color: var(--bg-primary);
       border: none;
       padding: 8px 20px;
-      border-radius: 10px;
+      border-radius: 8px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
     }
     .refresh-btn:hover:not(:disabled) {
-      box-shadow: 0 4px 16px var(--accent-glow);
-      transform: translateY(-1px);
+      background: var(--accent-hover);
     }
     .refresh-btn:disabled {
       opacity: 0.5;
@@ -145,44 +144,31 @@ interface TreeNode {
     }
     .status-card {
       background: var(--card-bg);
-      border-radius: 12px;
+      border-radius: 10px;
       padding: 20px;
       display: flex;
       align-items: center;
       gap: 16px;
-      box-shadow: 0 1px 4px var(--card-shadow);
       border: 1px solid var(--border);
-      transition: all 0.2s ease;
     }
     .status-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
       border-color: var(--border-hover);
     }
     .status-dot {
-      width: 16px;
-      height: 16px;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
       flex-shrink: 0;
       background: var(--text-muted);
-      transition: all 0.3s ease;
     }
     .status-dot.green {
-      background: #22c55e;
-      box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
-      animation: statusDotPulse 2s ease-in-out infinite;
-    }
-    @keyframes statusDotPulse {
-      0%, 100% { box-shadow: 0 0 8px rgba(34, 197, 94, 0.4); }
-      50% { box-shadow: 0 0 16px rgba(34, 197, 94, 0.6); }
+      background: #10a37f;
     }
     .status-dot.red {
       background: #ef4444;
-      box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
     }
     .status-dot.neutral {
-      background: var(--accent);
-      box-shadow: 0 0 8px var(--accent-glow);
+      background: var(--text-muted);
     }
     .status-info h3 {
       margin: 0 0 4px;
@@ -193,7 +179,7 @@ interface TreeNode {
     .status-value {
       margin: 0;
       font-size: 16px;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--text-primary);
     }
     .status-value.connected {
@@ -206,6 +192,7 @@ interface TreeNode {
       font-size: 18px;
       color: var(--text-heading);
       margin: 0 0 16px;
+      font-weight: 600;
     }
     .action-buttons {
       display: flex;
@@ -225,11 +212,18 @@ interface TreeNode {
     }
     .btn-primary {
       background: var(--accent);
-      color: #fff;
+      color: var(--bg-primary);
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent-hover);
     }
     .btn-secondary {
       background: var(--btn-secondary-bg);
       color: var(--btn-secondary-text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--bg-hover);
     }
     .action-result {
       margin-top: 12px;
@@ -246,6 +240,7 @@ interface TreeNode {
       font-size: 18px;
       color: var(--text-heading);
       margin: 0 0 12px;
+      font-weight: 600;
     }
     .raw-output pre {
       background: var(--bg-code);
@@ -263,18 +258,19 @@ interface TreeNode {
       font-size: 18px;
       color: var(--text-heading);
       margin: 0 0 8px;
+      font-weight: 600;
     }
     .tree-path {
       font-size: 12px;
       color: var(--text-muted);
       margin: 0 0 12px;
-      font-family: monospace;
+      font-family: 'JetBrains Mono', monospace;
     }
     .file-tree {
       background: var(--card-bg);
-      border-radius: 10px;
+      border-radius: 8px;
       padding: 8px 0;
-      box-shadow: 0 1px 4px var(--card-shadow);
+      border: 1px solid var(--border);
       max-height: 400px;
       overflow-y: auto;
     }
@@ -292,7 +288,7 @@ interface TreeNode {
       cursor: pointer;
     }
     .tree-node.folder:hover {
-      background: var(--bg-primary);
+      background: var(--bg-hover);
     }
     .tree-icon {
       font-size: 14px;
@@ -305,7 +301,7 @@ interface TreeNode {
     }
     .tree-loading {
       font-size: 11px;
-      color: var(--text-faint);
+      color: var(--text-muted);
     }
     .tree-empty {
       font-size: 13px;

@@ -145,21 +145,20 @@ type WizardStep = 1 | 2 | 3 | 4;
 
     .setup-card {
       background: var(--setup-card-bg);
-      border-radius: 20px;
+      border-radius: 16px;
       padding: 44px 44px 40px;
       max-width: 500px;
       width: 100%;
-      box-shadow:
-        0 1px 3px rgba(0,0,0,0.04),
-        0 8px 32px rgba(0,0,0,0.08);
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
       opacity: 0;
-      transform: translateY(16px);
+      transform: translateY(8px);
     }
     .setup-card.animate-in {
-      animation: cardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      animation: cardIn 0.3s ease forwards;
     }
     @keyframes cardIn {
-      from { opacity: 0; transform: translateY(16px); }
+      from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
@@ -172,23 +171,23 @@ type WizardStep = 1 | 2 | 3 | 4;
     }
     .progress-bar-track {
       flex: 1;
-      height: 6px;
+      height: 4px;
       background: var(--setup-progress-track);
-      border-radius: 3px;
+      border-radius: 2px;
       overflow: hidden;
     }
     .progress-bar-fill {
       height: 100%;
-      background: linear-gradient(90deg, var(--accent), var(--accent-hover));
-      border-radius: 3px;
-      transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.4s ease;
     }
     .progress-text {
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 500;
       color: var(--setup-progress-text);
       text-transform: uppercase;
-      letter-spacing: 0.6px;
+      letter-spacing: 0.5px;
       white-space: nowrap;
     }
 
@@ -197,28 +196,28 @@ type WizardStep = 1 | 2 | 3 | 4;
       text-align: center;
     }
     .step-icon {
-      font-size: 52px;
+      font-size: 48px;
       margin-bottom: 8px;
       line-height: 1;
     }
     .step-icon.large {
-      font-size: 64px;
+      font-size: 56px;
     }
     .step-title {
-      font-size: 28px;
-      font-weight: 700;
+      font-size: 24px;
+      font-weight: 600;
       margin: 0 0 10px;
       color: var(--setup-title-color);
       letter-spacing: -0.3px;
     }
     .step-title.inline {
       display: inline;
-      font-size: 22px;
+      font-size: 20px;
     }
     .step-desc {
       color: var(--setup-desc-color);
       margin: 0 0 24px;
-      font-size: 16px;
+      font-size: 15px;
       line-height: 1.5;
     }
 
@@ -231,20 +230,20 @@ type WizardStep = 1 | 2 | 3 | 4;
       margin-bottom: 8px;
     }
     .tool-icon {
-      font-size: 28px;
+      font-size: 24px;
       line-height: 1;
     }
 
     /* Status text colors */
     .status-text { font-size: 15px; }
-    .status-ok { color: #16a34a; font-weight: 600; }
+    .status-ok { color: #10a37f; font-weight: 600; }
     .status-err { color: var(--error-text-light); font-weight: 600; }
 
     /* Preview badge for browser mode */
     .preview-badge {
       display: inline-block;
-      background: #fef3c7;
-      color: #92400e;
+      background: var(--bg-card);
+      color: var(--text-secondary);
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.3px;
@@ -252,37 +251,28 @@ type WizardStep = 1 | 2 | 3 | 4;
       border-radius: 20px;
       margin-bottom: 16px;
       text-transform: uppercase;
+      border: 1px solid var(--border);
     }
 
     /* ========== Install Progress Bar ========== */
     .install-progress-bar {
-      height: 10px;
+      height: 6px;
       background: var(--setup-progress-track);
-      border-radius: 5px;
+      border-radius: 3px;
       overflow: hidden;
       margin: 0 0 16px;
-      position: relative;
     }
     .install-progress-fill {
       height: 100%;
-      border-radius: 5px;
+      border-radius: 3px;
       transition: width 0.4s ease;
-      background: linear-gradient(
-        90deg,
-        #7c5cfc 0%, #5c8cfc 25%, #7c5cfc 50%, #5c8cfc 75%, #7c5cfc 100%
-      );
-      background-size: 200% 100%;
-      animation: shimmer 1.8s linear infinite;
-    }
-    @keyframes shimmer {
-      from { background-position: 200% 0; }
-      to   { background-position: -200% 0; }
+      background: var(--accent);
     }
 
     /* ========== Log Box ========== */
     .log-box {
       background: var(--bg-code);
-      border-radius: 10px;
+      border-radius: 8px;
       padding: 14px 16px;
       margin: 0 0 16px;
       max-height: 150px;
@@ -292,8 +282,8 @@ type WizardStep = 1 | 2 | 3 | 4;
     .log-box pre {
       margin: 0;
       font-size: 12px;
-      color: #a0e0c0;
-      font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+      color: #a0c8a0;
+      font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
       white-space: pre-wrap;
       word-break: break-all;
       line-height: 1.6;
@@ -313,7 +303,7 @@ type WizardStep = 1 | 2 | 3 | 4;
       align-items: center;
       padding: 14px 18px;
       background: var(--setup-config-bg);
-      border-radius: 10px;
+      border-radius: 8px;
       border: 1px solid var(--setup-config-border);
     }
     .config-label {
@@ -325,14 +315,14 @@ type WizardStep = 1 | 2 | 3 | 4;
       gap: 8px;
     }
     .check-icon {
-      color: #16a34a;
+      color: #10a37f;
       font-weight: 700;
       font-size: 15px;
     }
     .config-value {
       font-size: 13px;
       color: var(--setup-config-value);
-      font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+      font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
     }
 
     /* ========== Buttons ========== */
@@ -342,11 +332,11 @@ type WizardStep = 1 | 2 | 3 | 4;
     .btn {
       padding: 14px 28px;
       border: none;
-      border-radius: 12px;
+      border-radius: 8px;
       font-size: 15px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: background 0.15s ease;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -355,26 +345,21 @@ type WizardStep = 1 | 2 | 3 | 4;
     .btn:disabled {
       opacity: 0.45;
       cursor: not-allowed;
-      transform: none !important;
     }
     .btn:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 16px var(--accent-glow);
-    }
-    .btn:active:not(:disabled) {
-      transform: translateY(0);
+      background: var(--accent-hover);
     }
     .btn-primary {
       background: var(--accent);
-      color: #fff;
+      color: var(--bg-primary);
     }
     .btn-full {
       width: 100%;
-      padding: 16px 28px;
-      font-size: 16px;
+      padding: 14px 28px;
+      font-size: 15px;
     }
     .arrow {
-      font-size: 18px;
+      font-size: 16px;
     }
 
     /* ========== Error ========== */
