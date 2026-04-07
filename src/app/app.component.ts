@@ -171,26 +171,40 @@ export class AppComponent implements OnInit, OnDestroy {
     this.routeSub = this.router.events.pipe(
       filter((e): e is NavigationEnd => e instanceof NavigationEnd)
     ).subscribe((e) => {
-      this.showSidebar = !e.urlAfterRedirects.startsWith('/setup');
+      const url = e.urlAfterRedirects;
+      this.showSidebar = !url.startsWith('/setup') && !url.startsWith('/login');
     });
 
-    // Check if setup was already completed
+    // Step 1: Check if user is logged in
+    if ((window as any).electronAPI?.authGetUser) {
+      try {
+        const user = await (window as any).electronAPI.authGetUser();
+        if (!user) {
+          // Not logged in — go to login
+          this.router.navigate(['/login']);
+          return;
+        }
+      } catch {
+        this.router.navigate(['/login']);
+        return;
+      }
+    }
+
+    // Step 2: Check if setup was already completed
     const setupDone = localStorage.getItem('xbb-setup-complete');
     if (setupDone === 'true') {
-      // Setup was done before — go straight to chat
       this.showSetupLink = false;
       this.router.navigate(['/chat']);
       return;
     }
 
-    // First launch — check tools in background
+    // Step 3: First launch — check tools in background
     if (this.installer.isElectron) {
       setTimeout(async () => {
         try {
           const tools = await this.installer.checkAll();
           const allInstalled = tools.claude.installed && tools.openclaw.installed;
           if (allInstalled) {
-            // Tools are installed — mark setup complete and go to chat
             localStorage.setItem('xbb-setup-complete', 'true');
             this.showSetupLink = false;
             this.router.navigate(['/chat']);
@@ -199,7 +213,6 @@ export class AppComponent implements OnInit, OnDestroy {
             this.router.navigate(['/setup']);
           }
         } catch {
-          // Check failed — show setup to be safe
           this.showSetupLink = true;
           this.router.navigate(['/setup']);
         }

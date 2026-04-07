@@ -6,6 +6,7 @@ import * as os from 'os';
 import * as https from 'https';
 import { AcpConnection, StreamChunk } from './acp';
 import * as logger from './logger';
+import * as auth from './auth';
 
 // ============ GLOBAL ERROR HANDLERS ============
 process.on('uncaughtException', (err) => {
@@ -19,8 +20,8 @@ process.on('unhandledRejection', (err) => {
 
 // Customer config — edit these values per deployment
 const CONFIG = {
-  apiBaseUrl: 'https://pikkapi.cooltechgp.online',
-  apiKey: 'sk-yUzZKUMi983ugkXrvhd1FfNU72Gjq4bTuTVqHMRxd43KnYE3',
+  apiBaseUrl: 'https://myapi.cooltechgp.online',
+  apiKey: '',  // Set by auth login — no hardcoded key
   model: 'opus[1m]',
   // Branding — how the assistant identifies itself
   assistantName: 'OpenClaw Assistant',
@@ -214,7 +215,16 @@ function createTray() {
 app.whenReady().then(() => {
   logger.log('MAIN', `App started, version: ${app.getVersion()}, platform: ${process.platform}, arch: ${process.arch}`);
   logger.log('MAIN', `Electron: ${process.versions.electron}, Node: ${process.versions.node}`);
-  logger.remote('app-start', 'info', `App started v${app.getVersion()} on ${process.platform}/${process.arch}`);
+
+  // Load saved auth on startup
+  const savedAuth = auth.loadAuth();
+  if (savedAuth) {
+    CONFIG.apiKey = savedAuth.myapiApiKey;
+    CONFIG.apiBaseUrl = savedAuth.myapiBaseUrl;
+    logger.log('MAIN', `Loaded auth for: ${savedAuth.email}`);
+  }
+
+  logger.remote('app-start', 'info', `App started v${app.getVersion()} on ${process.platform}/${process.arch}, user: ${savedAuth?.email || 'not logged in'}`);
   createWindow();
   createTray();
 
@@ -859,6 +869,63 @@ ipcMain.handle('list-directory', async (_, dirPath: string) => {
   } catch {
     return [];
   }
+});
+
+// ============ IPC: AUTH ============
+
+ipcMain.handle('auth-login-google', async () => {
+  try {
+    if (!mainWindow) throw new Error('No main window');
+    const user = await auth.loginViaMyapiOIDC(mainWindow);
+
+    // Auto-configure: update CONFIG with the user's API key
+    CONFIG.apiKey = user.myapiApiKey;
+    CONFIG.apiBaseUrl = user.myapiBaseUrl;
+
+    // Also configure Claude Code settings on disk
+    try {
+      const claudeDir = path.join(os.homedir(), '.claude');
+      fs.mkdirSync(claudeDir, { recursive: true });
+      const settingsPath = path.join(claudeDir, 'settings.json');
+      let settings: any = {};
+      try { settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8')); } catch {}
+      settings.env = settings.env || {};
+      settings.env.ANTHROPIC_AUTH_TOKEN = user.myapiApiKey;
+      settings.env.ANTHROPIC_BASE_URL = user.myapiBaseUrl;
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+      logger.log('AUTH', 'Claude settings updated with user API key');
+    } catch (e: any) {
+      logger.warn('AUTH', 'Failed to update Claude settings:', e.message);
+    }
+
+    return { success: true, user };
+  } catch (e: any) {
+    logger.error('AUTH', 'Login failed:', e.message);
+    return { success: false, error: e.message };
+  }
+});
+
+ipcMain.handle('auth-get-user', async () => {
+  const user = auth.loadAuth();
+  if (user) {
+    // Apply saved auth to CONFIG
+    CONFIG.apiKey = user.myapiApiKey;
+    CONFIG.apiBaseUrl = user.myapiBaseUrl;
+  }
+  return user;
+});
+
+ipcMain.handle('auth-logout', async () => {
+  auth.clearAuth();
+  // Reset to defaults
+  CONFIG.apiKey = '';
+  CONFIG.apiBaseUrl = 'https://myapi.cooltechgp.online';
+  // Kill ACP connection so next chat uses new config
+  if (acpConnection) {
+    try { await acpConnection.disconnect(); } catch {}
+    acpConnection = null;
+  }
+  return { success: true };
 });
 
 // ============ IPC: LOGS ============

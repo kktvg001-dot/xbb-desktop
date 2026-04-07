@@ -43,4 +43,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Logs
   getLogs: (date?: string) => ipcRenderer.invoke('get-logs', date),
   getLogDir: () => ipcRenderer.invoke('get-log-dir'),
+  // Auth
+  authLoginGoogle: () => ipcRenderer.invoke('auth-login-google'),
+  authGetUser: () => ipcRenderer.invoke('auth-get-user'),
+  authLogout: () => ipcRenderer.invoke('auth-logout'),
 });

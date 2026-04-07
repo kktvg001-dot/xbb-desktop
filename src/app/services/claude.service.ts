@@ -37,6 +37,9 @@ declare global {
       claudeNewSession: (workDir: string, resumeSessionId?: string) => Promise<{ success: boolean; sessionId?: string; error?: string }>;
       getLogs: (date?: string) => Promise<{ content: string; files: { date: string; size: number }[]; logDir: string }>;
       getLogDir: () => Promise<string>;
+      authLoginGoogle: () => Promise<{ success: boolean; user?: any; error?: string }>;
+      authGetUser: () => Promise<any>;
+      authLogout: () => Promise<{ success: boolean }>;
     };
   }
 }

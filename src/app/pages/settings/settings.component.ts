@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { ClaudeService } from '../../services/claude.service';
 
 interface Settings {
@@ -84,6 +85,19 @@ interface Settings {
         <p class="status-message" *ngIf="statusMessage" [class.error]="statusError" [class.success]="!statusError">
           {{ statusMessage }}
         </p>
+      </div>
+
+      <!-- Account section -->
+      <div class="settings-card" style="margin-top: 24px;" *ngIf="loggedInUser">
+        <div class="logs-header">
+          <h2>Account</h2>
+        </div>
+        <div class="account-info">
+          <p><strong>{{ loggedInUser.name }}</strong></p>
+          <p class="help-text">{{ loggedInUser.email }}</p>
+          <p class="help-text">API: {{ loggedInUser.myapiBaseUrl }}</p>
+        </div>
+        <button class="btn btn-secondary" style="margin-top: 12px;" (click)="logout()">Sign Out</button>
       </div>
 
       <!-- Logs section -->
@@ -317,11 +331,17 @@ export class SettingsComponent implements OnInit {
     }
   }
 
-  constructor(private claude: ClaudeService) {}
+  loggedInUser: any = null;
 
-  ngOnInit() {
+  constructor(private claude: ClaudeService, private router: Router) {}
+
+  async ngOnInit() {
     this.load();
     this.loadLogs();
+    // Load logged-in user
+    if ((window as any).electronAPI?.authGetUser) {
+      this.loggedInUser = await window.electronAPI.authGetUser();
+    }
   }
 
   async load() {
@@ -405,6 +425,14 @@ export class SettingsComponent implements OnInit {
       navigator.clipboard.writeText(this.logContent);
       this.statusMessage = 'Logs copied to clipboard.';
       this.statusError = false;
+    }
+  }
+
+  async logout() {
+    if ((window as any).electronAPI?.authLogout) {
+      await window.electronAPI.authLogout();
+      localStorage.removeItem('xbb-setup-complete');
+      this.router.navigate(['/login']);
     }
   }
 
