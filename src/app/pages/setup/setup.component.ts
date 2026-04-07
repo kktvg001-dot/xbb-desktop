@@ -54,7 +54,7 @@ type WizardStep = 1 | 2 | 3 | 4;
           </div>
 
           <div class="step-actions">
-            <button class="btn btn-primary btn-full" *ngIf="stepStatus === 'done'" (click)="goToStep(3)">
+            <button class="btn btn-primary btn-full" *ngIf="stepStatus === 'done' || stepStatus === 'idle'" (click)="goToStep(3)">
               Continue →
             </button>
             <button class="btn btn-primary btn-full" *ngIf="stepStatus === 'error'" (click)="runStep2()"
@@ -75,7 +75,7 @@ type WizardStep = 1 | 2 | 3 | 4;
             <span *ngIf="stepStatus === 'installing'">Installing...</span>
             <span *ngIf="stepStatus === 'done'" class="status-ok">&#10004; Installed</span>
             <span *ngIf="stepStatus === 'error'" class="status-err">&#10008; Failed</span>
-            <span *ngIf="stepStatus === 'idle'">{{ stepActionText }}</span>
+            <span *ngIf="stepStatus === 'idle'">Checking...</span>
           </p>
 
           <div class="install-progress-bar" *ngIf="stepStatus === 'installing'">
@@ -87,7 +87,7 @@ type WizardStep = 1 | 2 | 3 | 4;
           </div>
 
           <div class="step-actions">
-            <button class="btn btn-primary btn-full" *ngIf="stepStatus === 'done'" (click)="goToStep(4)">
+            <button class="btn btn-primary btn-full" *ngIf="stepStatus === 'done' || stepStatus === 'idle'" (click)="goToStep(4)">
               Continue →
             </button>
             <button class="btn btn-primary btn-full" *ngIf="stepStatus === 'error'" (click)="runStep3()"
