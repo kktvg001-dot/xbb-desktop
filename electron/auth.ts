@@ -140,14 +140,18 @@ export async function loginViaMyapiOIDC(parentWindow: BrowserWindow): Promise<Au
 
         const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
-        // Get user info from myapi using the session
-        debug('Calling /api/user/self...');
-        const userResp = await httpRequest(`${MYAPI_URL}/api/user/self`, {
-          headers: { 'Cookie': cookieStr },
-        });
-        debug(`/api/user/self response status: ${userResp.status}`);
+        // Get user info by running fetch INSIDE the auth window's browser context
+        // This uses the actual session cookie automatically (no header issues)
+        debug('Calling /api/user/self via browser context...');
+        const userDataStr = await authWindow.webContents.executeJavaScript(`
+          fetch('/api/user/self', { credentials: 'include' })
+            .then(r => r.json())
+            .then(d => JSON.stringify(d))
+            .catch(e => JSON.stringify({ success: false, message: e.message }))
+        `);
+        debug(`/api/user/self response: ${userDataStr.substring(0, 200)}`);
 
-        const userData = JSON.parse(userResp.body);
+        const userData = JSON.parse(userDataStr);
         if (!userData.success || !userData.data) {
           debug(`/api/user/self failed: ${userData.message || 'no data'}`);
           throw new Error('Failed to get user info after login');
