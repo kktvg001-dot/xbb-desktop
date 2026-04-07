@@ -173,9 +173,9 @@ function sendProgress(tool: string, msg: string) {
 function commandExists(cmd: string): boolean {
   try {
     if (process.platform === 'win32') {
-      execSync(`where ${cmd}`, { encoding: 'utf8', timeout: 5000, stdio: 'pipe' });
+      execSync(`where ${cmd}`, { encoding: 'utf8', timeout: 2000, stdio: 'pipe', windowsHide: true } as any);
     } else {
-      execSync(`which ${cmd}`, { encoding: 'utf8', timeout: 5000, stdio: 'pipe' });
+      execSync(`which ${cmd}`, { encoding: 'utf8', timeout: 2000, stdio: 'pipe' });
     }
     return true;
   } catch {

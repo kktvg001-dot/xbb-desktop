@@ -146,20 +146,20 @@ export class AppComponent implements OnInit, OnDestroy {
       this.showSidebar = !e.urlAfterRedirects.startsWith('/setup');
     });
 
-    // Auto-redirect: check if tools are installed
-    try {
-      const tools = await this.installer.checkAll();
-      const allInstalled = tools.claude.installed && tools.openclaw.installed;
-      if (!allInstalled) {
-        this.router.navigate(['/setup']);
-      } else {
-        // Only redirect to chat if we're at the root
-        if (window.location.hash === '' || window.location.hash === '#/' || window.location.hash === '#') {
-          this.router.navigate(['/chat']);
+    // Don't block startup — check tools in background after UI loads
+    if (this.installer.isElectron) {
+      setTimeout(async () => {
+        try {
+          const tools = await this.installer.checkAll();
+          const allInstalled = tools.claude.installed && tools.openclaw.installed;
+          if (!allInstalled) {
+            this.router.navigate(['/setup']);
+          }
+        } catch {
+          // If check fails, go to setup
+          this.router.navigate(['/setup']);
         }
-      }
-    } catch {
-      // If check fails, let default routing handle it
+      }, 500);
     }
   }
 
