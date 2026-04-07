@@ -306,22 +306,22 @@ export class AcpConnection {
       throw new Error('No active session. Call newSession() first.');
     }
 
-    const promptContent: Array<Record<string, unknown>> = [];
+    let promptText = message || '';
 
-    // Add image block if present
+    // If image is provided, save to temp file and use @ reference (AionUI pattern)
     if (imageBase64) {
-      promptContent.push({
-        type: 'image',
-        source: {
-          type: 'base64',
-          media_type: 'image/png',
-          data: imageBase64,
-        },
-      });
+      const tmpDir = path.join(os.tmpdir(), 'xbb-desktop');
+      if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+      const imgPath = path.join(tmpDir, `paste-${Date.now()}.png`);
+      // Remove data URL prefix if present
+      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+      fs.writeFileSync(imgPath, Buffer.from(base64Data, 'base64'));
+      // Prepend @ file reference (Claude Code reads files via @ prefix)
+      const escapedPath = imgPath.includes(' ') ? `@"${imgPath}"` : `@${imgPath}`;
+      promptText = `${escapedPath} ${promptText || 'What is in this image?'}`;
     }
 
-    // Add text block
-    promptContent.push({ type: 'text', text: message || 'What is in this image?' });
+    const promptContent = [{ type: 'text', text: promptText }];
 
     this.startPromptKeepalive();
     try {
