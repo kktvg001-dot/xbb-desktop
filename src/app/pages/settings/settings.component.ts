@@ -91,17 +91,25 @@ interface Settings {
     .settings-page {
       padding: 32px;
       max-width: 600px;
+      animation: settingsFadeIn 0.4s ease;
+    }
+    @keyframes settingsFadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .settings-page h1 {
       font-size: 24px;
       margin: 0 0 24px;
       color: var(--text-heading);
+      font-weight: 700;
+      letter-spacing: -0.5px;
     }
     .settings-card {
       background: var(--card-bg);
-      border-radius: 12px;
+      border-radius: 14px;
       padding: 28px;
       box-shadow: 0 1px 4px var(--card-shadow);
+      border: 1px solid var(--border);
     }
     .form-group {
       margin-bottom: 20px;
@@ -129,6 +137,7 @@ interface Settings {
     .form-group input:focus,
     .form-group select:focus {
       border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
     }
     .masked-input {
       display: flex;
@@ -175,11 +184,12 @@ interface Settings {
       cursor: not-allowed;
     }
     .btn-primary {
-      background: var(--accent);
+      background: var(--accent-gradient);
       color: #fff;
     }
     .btn-primary:hover {
-      background: var(--accent-hover);
+      box-shadow: 0 4px 16px var(--accent-glow);
+      transform: translateY(-1px);
     }
     .btn-secondary {
       background: var(--btn-secondary-bg);

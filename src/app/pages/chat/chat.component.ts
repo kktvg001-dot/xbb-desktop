@@ -941,11 +941,11 @@ interface ChatMessage {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 6px 12px;
-      background: #f1f5f9;
-      border-bottom: 1px solid #e2e8f0;
+      padding: 8px 14px;
+      background: var(--bg-input);
+      border-bottom: 1px solid var(--border);
       font-weight: 600;
-      color: #334155;
+      color: var(--text-primary);
     }
     .diff-file-icon {
       display: inline-flex;
@@ -961,8 +961,8 @@ interface ChatMessage {
       flex-shrink: 0;
     }
     .diff-file-icon.diff-file-created {
-      background: #34d399;
-      color: #064e3b;
+      background: #22c55e;
+      color: #052e16;
     }
     .diff-file-path {
       overflow: hidden;
@@ -978,7 +978,7 @@ interface ChatMessage {
     }
     .diff-body.diff-no-content {
       padding: 12px;
-      color: #6b7280;
+      color: var(--text-muted);
       font-style: italic;
       font-family: inherit;
     }
@@ -986,7 +986,7 @@ interface ChatMessage {
       margin: 0;
     }
     .diff-section + .diff-section {
-      border-top: 1px dashed #e5e7eb;
+      border-top: 1px dashed var(--border);
       margin-top: 2px;
       padding-top: 2px;
     }
@@ -996,12 +996,12 @@ interface ChatMessage {
       min-height: 20px;
     }
     .diff-line.diff-removed {
-      background: #fef2f2;
-      color: #991b1b;
+      background: rgba(239, 68, 68, 0.1);
+      color: #fca5a5;
     }
     .diff-line.diff-added {
-      background: #f0fdf4;
-      color: #166534;
+      background: rgba(34, 197, 94, 0.1);
+      color: #86efac;
     }
     .diff-prefix {
       width: 16px;
@@ -1010,10 +1010,10 @@ interface ChatMessage {
       user-select: none;
     }
     .diff-line.diff-removed .diff-prefix {
-      color: #dc2626;
+      color: #ef4444;
     }
     .diff-line.diff-added .diff-prefix {
-      color: #16a34a;
+      color: #22c55e;
     }
     .diff-text {
       white-space: pre-wrap;
@@ -1024,12 +1024,12 @@ interface ChatMessage {
 
     /* ── Error text ── */
     .error-text {
-      color: #dc2626;
+      color: #ef4444;
       font-size: 13px;
-      padding: 6px 10px;
-      background: #fef2f2;
-      border-radius: 6px;
-      border: 1px solid #fee2e2;
+      padding: 8px 12px;
+      background: rgba(239, 68, 68, 0.1);
+      border-radius: 8px;
+      border: 1px solid rgba(239, 68, 68, 0.2);
     }
 
     /* ── Thinking dots ── */
@@ -1039,17 +1039,17 @@ interface ChatMessage {
       padding: 6px 0;
     }
     .thinking-dots .dot {
-      width: 7px;
-      height: 7px;
-      background: #aaa;
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
       border-radius: 50%;
       animation: dotBounce 1.2s infinite;
     }
     .thinking-dots .dot:nth-child(2) { animation-delay: 0.15s; }
     .thinking-dots .dot:nth-child(3) { animation-delay: 0.3s; }
     @keyframes dotBounce {
-      0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
-      40% { transform: scale(1); opacity: 1; }
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+      40% { transform: translateY(-6px); opacity: 1; }
     }
 
     /* ── Drag-drop overlay ── */
@@ -1059,7 +1059,8 @@ interface ChatMessage {
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(5, 150, 105, 0.08);
+      background: rgba(124, 92, 252, 0.08);
+      backdrop-filter: blur(4px);
       z-index: 100;
       display: flex;
       align-items: center;
@@ -1067,12 +1068,13 @@ interface ChatMessage {
     }
     .drop-overlay-content {
       padding: 40px 60px;
-      border: 3px dashed #059669;
-      border-radius: 16px;
+      border: 3px dashed var(--accent);
+      border-radius: 20px;
       font-size: 18px;
       font-weight: 600;
-      color: #059669;
-      background: rgba(255, 255, 255, 0.9);
+      color: var(--accent);
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
     }
 
     /* ── Image preview ── */
@@ -1087,8 +1089,8 @@ interface ChatMessage {
     .image-preview img {
       max-height: 200px;
       max-width: 100%;
-      border-radius: 10px;
-      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      border: 1px solid var(--border);
       object-fit: contain;
     }
     .image-remove {
@@ -1111,13 +1113,13 @@ interface ChatMessage {
       transition: background 0.15s;
     }
     .image-remove:hover {
-      background: rgba(0, 0, 0, 0.85);
+      background: rgba(239, 68, 68, 0.8);
     }
 
     /* ── Input bar ── */
     .input-bar {
       padding: 12px 16px 20px;
-      background: #f9f9f9;
+      background: var(--bg-primary);
       flex-shrink: 0;
     }
     .input-area {
@@ -1125,15 +1127,16 @@ interface ChatMessage {
       margin: 0 auto;
       display: flex;
       align-items: flex-end;
-      background: #fff;
-      border: 1px solid #d9d9d9;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       border-radius: 20px;
       padding: 6px 6px 6px 16px;
-      transition: border-color 0.15s, box-shadow 0.15s;
+      transition: all 0.25s ease;
+      backdrop-filter: blur(8px);
     }
     .input-area.focused {
-      border-color: #999;
-      box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 20px var(--accent-glow);
     }
     .input-area textarea {
       flex: 1;
@@ -1146,21 +1149,21 @@ interface ChatMessage {
       padding: 6px 0;
       max-height: 200px;
       background: transparent;
-      color: #1a1a1a;
+      color: var(--text-primary);
     }
     .input-area textarea::placeholder {
-      color: #aaa;
+      color: var(--text-muted);
     }
     .input-area textarea:disabled {
       opacity: 0.5;
     }
 
     .send-button {
-      width: 32px;
-      height: 32px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       border: none;
-      background: #1a1a1a;
+      background: var(--accent-gradient);
       color: #fff;
       cursor: pointer;
       display: flex;
@@ -1169,16 +1172,18 @@ interface ChatMessage {
       flex-shrink: 0;
       opacity: 0;
       transform: scale(0.8);
-      transition: opacity 0.15s, transform 0.15s, background 0.15s;
+      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
       pointer-events: none;
     }
     .send-button.visible {
       opacity: 1;
       transform: scale(1);
       pointer-events: auto;
+      box-shadow: 0 2px 8px var(--accent-glow);
     }
     .send-button:hover:not(:disabled) {
-      background: #333;
+      transform: scale(1.05);
+      box-shadow: 0 4px 16px var(--accent-glow-strong);
     }
     .send-button:disabled {
       opacity: 0.3;
@@ -1191,26 +1196,27 @@ interface ChatMessage {
       align-items: center;
       gap: 8px;
       padding: 8px 0;
-      color: #6b7280;
+      color: var(--text-secondary);
       font-size: 13px;
     }
     .activity-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #00a884;
+      background: var(--accent);
       animation: pulse 1.5s infinite;
+      box-shadow: 0 0 8px var(--accent-glow);
       flex-shrink: 0;
     }
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
+      0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--accent-glow); }
+      50% { opacity: 0.4; box-shadow: 0 0 16px var(--accent-glow-strong); }
     }
 
     /* ── Stop button ── */
     .stop-btn {
-      width: 32px;
-      height: 32px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       background: #ef4444;
       border: none;
@@ -1223,16 +1229,17 @@ interface ChatMessage {
     }
     .stop-btn:hover {
       background: #dc2626;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
     }
 
     /* ── Mic button ── */
     .mic-btn {
-      width: 32px;
-      height: 32px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       border: none;
       background: transparent;
-      color: #999;
+      color: var(--text-muted);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -1241,8 +1248,8 @@ interface ChatMessage {
       transition: color 0.15s, background 0.15s;
     }
     .mic-btn:hover {
-      color: #555;
-      background: #f0f0f0;
+      color: var(--text-secondary);
+      background: var(--bg-hover);
     }
     .mic-btn.recording {
       color: #ef4444;
@@ -1264,7 +1271,7 @@ interface ChatMessage {
     .shortcuts-hint {
       background: none;
       border: none;
-      color: #aaa;
+      color: var(--text-muted);
       font-size: 11px;
       cursor: pointer;
       display: flex;
@@ -1275,8 +1282,8 @@ interface ChatMessage {
       transition: color 0.15s, background 0.15s;
     }
     .shortcuts-hint:hover {
-      color: #666;
-      background: rgba(0,0,0,0.04);
+      color: var(--text-secondary);
+      background: var(--bg-hover);
     }
     .shortcuts-hint span {
       display: inline-flex;
@@ -1285,8 +1292,8 @@ interface ChatMessage {
       width: 16px;
       height: 16px;
       border-radius: 3px;
-      background: #e5e5e5;
-      color: #666;
+      background: var(--bg-hover);
+      color: var(--text-muted);
       font-size: 11px;
       font-weight: 600;
     }
@@ -1295,45 +1302,48 @@ interface ChatMessage {
     .shortcuts-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 1000;
     }
     .shortcuts-dialog {
-      background: #fff;
-      border-radius: 12px;
-      width: 360px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 380px;
       max-width: 90vw;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.4);
       overflow: hidden;
     }
     .shortcuts-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 16px 20px;
-      border-bottom: 1px solid #eee;
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
     }
     .shortcuts-header h3 {
       margin: 0;
       font-size: 16px;
-      font-weight: 600;
-      color: #1a1a1a;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.3px;
     }
     .shortcuts-close {
       background: none;
       border: none;
       font-size: 20px;
-      color: #999;
+      color: var(--text-muted);
       cursor: pointer;
       padding: 0;
       line-height: 1;
     }
-    .shortcuts-close:hover { color: #333; }
+    .shortcuts-close:hover { color: var(--text-primary); }
     .shortcuts-body {
-      padding: 12px 20px 20px;
+      padding: 14px 22px 22px;
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -1343,28 +1353,28 @@ interface ChatMessage {
       align-items: center;
       gap: 6px;
       font-size: 13px;
-      color: #666;
+      color: var(--text-secondary);
     }
     .shortcut-row span {
       margin-left: auto;
-      color: #333;
+      color: var(--text-primary);
     }
     .shortcut-row kbd {
       display: inline-block;
-      padding: 2px 7px;
-      background: #f5f5f5;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      padding: 3px 8px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
       font-size: 12px;
-      font-family: inherit;
-      color: #444;
-      box-shadow: 0 1px 0 #ccc;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-secondary);
+      box-shadow: 0 1px 0 var(--border);
     }
 
     /* ── Queued message styles ── */
     .queued-msg {
       opacity: 0.6;
-      background: #6b7280 !important;
+      background: var(--bg-hover) !important;
     }
     .queued-tag {
       display: inline-block;
@@ -1377,9 +1387,9 @@ interface ChatMessage {
     }
     .queued-badge {
       font-size: 11px;
-      color: #059669;
-      background: #ecfdf5;
-      border: 1px solid #a7f3d0;
+      color: var(--accent);
+      background: rgba(124, 92, 252, 0.1);
+      border: 1px solid rgba(124, 92, 252, 0.2);
       border-radius: 10px;
       padding: 2px 8px;
       white-space: nowrap;

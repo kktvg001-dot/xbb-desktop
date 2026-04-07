@@ -269,7 +269,7 @@ type WizardStep = 1 | 2 | 3 | 4;
       transition: width 0.4s ease;
       background: linear-gradient(
         90deg,
-        #00a884 0%, #00c49a 25%, #00a884 50%, #00c49a 75%, #00a884 100%
+        #7c5cfc 0%, #5c8cfc 25%, #7c5cfc 50%, #5c8cfc 75%, #7c5cfc 100%
       );
       background-size: 200% 100%;
       animation: shimmer 1.8s linear infinite;
@@ -359,7 +359,7 @@ type WizardStep = 1 | 2 | 3 | 4;
     }
     .btn:hover:not(:disabled) {
       transform: translateY(-2px);
-      box-shadow: 0 4px 16px rgba(0, 168, 132, 0.3);
+      box-shadow: 0 4px 16px var(--accent-glow);
     }
     .btn:active:not(:disabled) {
       transform: translateY(0);

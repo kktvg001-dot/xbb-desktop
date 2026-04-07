@@ -101,6 +101,11 @@ interface TreeNode {
     .status-page {
       padding: 32px;
       max-width: 800px;
+      animation: statusFadeIn 0.4s ease;
+    }
+    @keyframes statusFadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .page-header {
       display: flex;
@@ -112,16 +117,22 @@ interface TreeNode {
       font-size: 24px;
       margin: 0;
       color: var(--text-heading);
+      letter-spacing: -0.5px;
     }
     .refresh-btn {
-      background: var(--accent);
+      background: var(--accent-gradient);
       color: #fff;
       border: none;
       padding: 8px 20px;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .refresh-btn:hover:not(:disabled) {
+      box-shadow: 0 4px 16px var(--accent-glow);
+      transform: translateY(-1px);
     }
     .refresh-btn:disabled {
       opacity: 0.5;
@@ -134,30 +145,44 @@ interface TreeNode {
     }
     .status-card {
       background: var(--card-bg);
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 20px;
       display: flex;
       align-items: center;
       gap: 16px;
       box-shadow: 0 1px 4px var(--card-shadow);
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+    }
+    .status-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      border-color: var(--border-hover);
     }
     .status-dot {
       width: 16px;
       height: 16px;
       border-radius: 50%;
       flex-shrink: 0;
-      background: #bbb;
+      background: var(--text-muted);
+      transition: all 0.3s ease;
     }
     .status-dot.green {
-      background: #4caf50;
-      box-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
+      background: #22c55e;
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+      animation: statusDotPulse 2s ease-in-out infinite;
+    }
+    @keyframes statusDotPulse {
+      0%, 100% { box-shadow: 0 0 8px rgba(34, 197, 94, 0.4); }
+      50% { box-shadow: 0 0 16px rgba(34, 197, 94, 0.6); }
     }
     .status-dot.red {
-      background: #f44336;
-      box-shadow: 0 0 8px rgba(244, 67, 54, 0.4);
+      background: #ef4444;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
     }
     .status-dot.neutral {
-      background: #2196f3;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
     }
     .status-info h3 {
       margin: 0 0 4px;

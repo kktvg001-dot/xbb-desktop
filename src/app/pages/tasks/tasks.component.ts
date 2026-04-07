@@ -88,6 +88,11 @@ interface ScheduledTask {
     .tasks-page {
       padding: 32px;
       max-width: 800px;
+      animation: tasksFadeIn 0.4s ease;
+    }
+    @keyframes tasksFadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .page-header {
       display: flex;
@@ -98,38 +103,42 @@ interface ScheduledTask {
     .page-header h1 {
       font-size: 24px;
       margin: 0;
-      color: #1a1a2e;
+      color: var(--text-heading);
+      letter-spacing: -0.5px;
     }
     .info-note {
       font-size: 13px;
-      color: #888;
+      color: var(--text-muted);
       margin: 0 0 24px;
     }
     .add-btn {
-      background: #00a884;
+      background: var(--accent-gradient);
       color: #fff;
       border: none;
       padding: 8px 20px;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
+      transition: all 0.2s ease;
     }
     .add-btn:hover {
-      background: #009974;
+      box-shadow: 0 4px 16px var(--accent-glow);
+      transform: translateY(-1px);
     }
 
     /* Form */
     .task-form-card {
-      background: #fff;
-      border-radius: 10px;
+      background: var(--card-bg);
+      border-radius: 12px;
       padding: 24px;
       margin-bottom: 24px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      box-shadow: 0 1px 4px var(--card-shadow);
+      border: 1px solid var(--border);
     }
     .task-form-card h2 {
       font-size: 18px;
-      color: #1a1a2e;
+      color: var(--text-heading);
       margin: 0 0 16px;
     }
     .form-group {
@@ -139,22 +148,25 @@ interface ScheduledTask {
       display: block;
       font-size: 13px;
       font-weight: 600;
-      color: #555;
+      color: var(--text-secondary);
       margin-bottom: 6px;
     }
     .form-input {
       width: 100%;
       padding: 10px 12px;
-      border: 1px solid #ddd;
+      border: 1px solid var(--input-border);
       border-radius: 8px;
       font-size: 14px;
       font-family: inherit;
-      background: #fafafa;
+      background: var(--input-bg);
+      color: var(--text-primary);
       box-sizing: border-box;
+      transition: all 0.2s ease;
     }
     .form-input:focus {
       outline: none;
-      border-color: #00a884;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
     }
     .form-textarea {
       resize: vertical;
@@ -173,11 +185,12 @@ interface ScheduledTask {
       cursor: not-allowed;
     }
     .btn-primary {
-      background: #00a884;
+      background: var(--accent-gradient);
       color: #fff;
     }
     .btn-primary:hover:not(:disabled) {
-      background: #009974;
+      box-shadow: 0 4px 16px var(--accent-glow);
+      transform: translateY(-1px);
     }
 
     /* Task Cards */
@@ -187,10 +200,17 @@ interface ScheduledTask {
       gap: 12px;
     }
     .task-card {
-      background: #fff;
-      border-radius: 10px;
+      background: var(--card-bg);
+      border-radius: 12px;
       padding: 20px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      box-shadow: 0 1px 4px var(--card-shadow);
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+    }
+    .task-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      border-color: var(--border-hover);
     }
     .task-header {
       display: flex;
@@ -201,11 +221,11 @@ interface ScheduledTask {
     .task-title h3 {
       margin: 0;
       font-size: 16px;
-      color: #1a1a2e;
+      color: var(--text-heading);
     }
     .task-schedule {
       font-size: 12px;
-      color: #888;
+      color: var(--text-muted);
     }
     .task-controls {
       display: flex;
@@ -214,7 +234,7 @@ interface ScheduledTask {
     }
     .task-prompt {
       font-size: 13px;
-      color: #666;
+      color: var(--text-secondary);
       margin: 0 0 12px;
       white-space: pre-wrap;
       line-height: 1.5;
@@ -227,7 +247,7 @@ interface ScheduledTask {
       align-items: center;
       gap: 16px;
       font-size: 12px;
-      color: #888;
+      color: var(--text-muted);
     }
     .status-badge {
       padding: 2px 10px;
@@ -236,20 +256,20 @@ interface ScheduledTask {
       text-transform: capitalize;
     }
     .status-idle {
-      background: #f0f0f0;
-      color: #888;
+      background: var(--bg-hover);
+      color: var(--text-muted);
     }
     .status-running {
-      background: #e3f2fd;
-      color: #1565c0;
+      background: rgba(124, 92, 252, 0.1);
+      color: var(--accent);
     }
     .status-completed {
-      background: #e8f5e9;
-      color: #2e7d32;
+      background: rgba(34, 197, 94, 0.1);
+      color: #22c55e;
     }
     .status-failed {
-      background: #fce4ec;
-      color: #c62828;
+      background: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
     }
 
     /* Toggle Switch */
@@ -268,7 +288,7 @@ interface ScheduledTask {
       position: absolute;
       cursor: pointer;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: #ccc;
+      background: var(--border);
       border-radius: 22px;
       transition: 0.2s;
     }
@@ -284,7 +304,7 @@ interface ScheduledTask {
       transition: 0.2s;
     }
     .toggle input:checked + .toggle-slider {
-      background: #00a884;
+      background: var(--accent);
     }
     .toggle input:checked + .toggle-slider::before {
       transform: translateX(18px);
@@ -294,21 +314,21 @@ interface ScheduledTask {
     .delete-btn {
       background: none;
       border: none;
-      color: #bbb;
+      color: var(--text-muted);
       font-size: 22px;
       cursor: pointer;
       line-height: 1;
       padding: 0 4px;
     }
     .delete-btn:hover {
-      color: #f44336;
+      color: #ef4444;
     }
 
     /* Empty State */
     .empty-state {
       text-align: center;
       padding: 48px 0;
-      color: #888;
+      color: var(--text-muted);
       font-size: 14px;
     }
   `],
