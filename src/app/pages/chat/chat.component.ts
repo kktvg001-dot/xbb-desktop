@@ -89,6 +89,23 @@ interface ChatMessage {
         (dragover)="onDragOver($event)"
         (dragleave)="onDragLeave($event)"
         (drop)="onDrop($event)">
+
+      <!-- Model selector header -->
+      <div class="model-header">
+        <select [(ngModel)]="selectedModel" (ngModelChange)="onModelChange($event)" class="model-select">
+          <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+          <option value="claude-opus-4-6">Opus 4.6</option>
+          <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
+          <option value="custom">Custom...</option>
+        </select>
+        <input
+          *ngIf="selectedModel === 'custom'"
+          [(ngModel)]="customModelId"
+          (blur)="onCustomModelBlur()"
+          (keydown.enter)="onCustomModelBlur()"
+          class="model-custom-input"
+          placeholder="model-id" />
+      </div>
       <div class="chat-messages" #messagesContainer>
 
         <!-- Empty state -->
@@ -220,6 +237,18 @@ interface ChatMessage {
             rows="1"></textarea>
           <!-- queued messages now shown in conversation list -->
           <button
+            class="mic-btn"
+            [class.recording]="isRecording"
+            (click)="toggleSpeechInput()"
+            title="Voice input">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1a2.5 2.5 0 0 0-2.5 2.5v4a2.5 2.5 0 0 0 5 0v-4A2.5 2.5 0 0 0 8 1z" fill="currentColor"/>
+              <path d="M4 7v.5a4 4 0 0 0 8 0V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M8 12.5V15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M5.5 15h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button
             *ngIf="claude.isStreaming"
             class="stop-btn"
             (click)="stopGeneration()">
@@ -238,11 +267,33 @@ interface ChatMessage {
             </svg>
           </button>
         </div>
+        <div class="input-hints">
+          <button class="shortcuts-hint" (click)="showShortcutsHelp = true" title="Keyboard shortcuts (Ctrl+/)">
+            <span>?</span> Shortcuts
+          </button>
+        </div>
       </div>
     </div><!-- /chat-container -->
     <!-- Image lightbox -->
     <div class="image-lightbox" *ngIf="lightboxImage" (click)="lightboxImage = null">
       <img [src]="'data:image/png;base64,' + lightboxImage" alt="Preview" />
+    </div>
+    <!-- Keyboard shortcuts help overlay -->
+    <div class="shortcuts-overlay" *ngIf="showShortcutsHelp" (click)="showShortcutsHelp = false">
+      <div class="shortcuts-dialog" (click)="$event.stopPropagation()">
+        <div class="shortcuts-header">
+          <h3>Keyboard Shortcuts</h3>
+          <button class="shortcuts-close" (click)="showShortcutsHelp = false">&times;</button>
+        </div>
+        <div class="shortcuts-body">
+          <div class="shortcut-row"><kbd>Ctrl</kbd> + <kbd>N</kbd><span>New chat</span></div>
+          <div class="shortcut-row"><kbd>Ctrl</kbd> + <kbd>L</kbd><span>Clear current chat</span></div>
+          <div class="shortcut-row"><kbd>Escape</kbd><span>Stop generation</span></div>
+          <div class="shortcut-row"><kbd>Ctrl</kbd> + <kbd>/</kbd><span>Show shortcuts</span></div>
+          <div class="shortcut-row"><kbd>Enter</kbd><span>Send message</span></div>
+          <div class="shortcut-row"><kbd>Shift</kbd> + <kbd>Enter</kbd><span>New line</span></div>
+        </div>
+      </div>
     </div>
     </div><!-- /chat-layout -->
   `,
@@ -405,6 +456,55 @@ interface ChatMessage {
       min-width: 0;
       background: #f9f9f9;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    /* ── Model selector header ── */
+    .model-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #fff;
+      flex-shrink: 0;
+    }
+
+    .model-select {
+      font-size: 12px;
+      padding: 4px 20px 4px 10px;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      background: transparent;
+      color: #6b7280;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 6px center;
+      transition: border-color 0.15s;
+    }
+    .model-select:hover {
+      border-color: #9ca3af;
+    }
+    .model-select:focus {
+      border-color: #059669;
+    }
+
+    .model-custom-input {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      background: transparent;
+      color: #374151;
+      outline: none;
+      width: 180px;
+      transition: border-color 0.15s;
+    }
+    .model-custom-input:focus {
+      border-color: #059669;
     }
 
     /* ── Messages area ── */
@@ -906,6 +1006,142 @@ interface ChatMessage {
       background: #dc2626;
     }
 
+    /* ── Mic button ── */
+    .mic-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: #999;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: color 0.15s, background 0.15s;
+    }
+    .mic-btn:hover {
+      color: #555;
+      background: #f0f0f0;
+    }
+    .mic-btn.recording {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.1);
+      animation: micPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes micPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3); }
+      50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    }
+
+    /* ── Input hints ── */
+    .input-hints {
+      max-width: 800px;
+      margin: 4px auto 0;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .shortcuts-hint {
+      background: none;
+      border: none;
+      color: #aaa;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .shortcuts-hint:hover {
+      color: #666;
+      background: rgba(0,0,0,0.04);
+    }
+    .shortcuts-hint span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      background: #e5e5e5;
+      color: #666;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* ── Shortcuts overlay ── */
+    .shortcuts-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .shortcuts-dialog {
+      background: #fff;
+      border-radius: 12px;
+      width: 360px;
+      max-width: 90vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+    .shortcuts-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid #eee;
+    }
+    .shortcuts-header h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    .shortcuts-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: #999;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .shortcuts-close:hover { color: #333; }
+    .shortcuts-body {
+      padding: 12px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .shortcut-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #666;
+    }
+    .shortcut-row span {
+      margin-left: auto;
+      color: #333;
+    }
+    .shortcut-row kbd {
+      display: inline-block;
+      padding: 2px 7px;
+      background: #f5f5f5;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+      color: #444;
+      box-shadow: 0 1px 0 #ccc;
+    }
+
     /* ── Queued message styles ── */
     .queued-msg {
       opacity: 0.6;
@@ -947,11 +1183,43 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   currentActivity = 'Thinking...';
   pendingQueue: string[] = [];
 
+  // Speech input state
+  isRecording = false;
+  private currentRecognition: any = null;
+
+  // Keyboard shortcuts help
+  showShortcutsHelp = false;
+
   // Conversation sidebar state
   conversations: ConversationEntry[] = [];
   currentConversationId: string | null = null;
   sidebarOpen = false;
   groupedConversations: { today: ConversationEntry[]; yesterday: ConversationEntry[]; previous: ConversationEntry[] } = { today: [], yesterday: [], previous: [] };
+
+  // Model selector state
+  selectedModel: string = localStorage.getItem('xbb-selected-model') || 'claude-sonnet-4-6';
+  customModelId: string = localStorage.getItem('xbb-custom-model') || '';
+
+  onModelChange(model: string) {
+    if (model !== 'custom') {
+      localStorage.setItem('xbb-selected-model', model);
+    }
+  }
+
+  onCustomModelBlur() {
+    const id = this.customModelId.trim();
+    if (id) {
+      localStorage.setItem('xbb-custom-model', id);
+      localStorage.setItem('xbb-selected-model', id);
+    }
+  }
+
+  getActiveModel(): string {
+    if (this.selectedModel === 'custom') {
+      return this.customModelId.trim() || 'claude-sonnet-4-6';
+    }
+    return this.selectedModel;
+  }
 
   previewImage(base64: string) {
     this.lightboxImage = base64;
@@ -1437,6 +1705,114 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     processed = processed.replace(/(<\/div>)<br>/g, '$1');
 
     return processed;
+  }
+
+  // ── Speech Input ──
+
+  toggleSpeechInput() {
+    if (this.isRecording) {
+      this.stopSpeechInput();
+    } else {
+      this.startSpeechInput();
+    }
+  }
+
+  startSpeechInput() {
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    if (!SpeechRecognition) {
+      console.warn('Speech recognition not supported in this browser');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      this.inputText = transcript;
+      this.cdr.detectChanges();
+    };
+
+    recognition.onerror = (event: any) => {
+      console.warn('Speech recognition error:', event.error);
+      this.isRecording = false;
+      this.currentRecognition = null;
+      this.cdr.detectChanges();
+    };
+
+    recognition.onend = () => {
+      this.isRecording = false;
+      this.currentRecognition = null;
+      this.cdr.detectChanges();
+    };
+
+    this.isRecording = true;
+    recognition.start();
+    this.currentRecognition = recognition;
+  }
+
+  stopSpeechInput() {
+    if (this.currentRecognition) {
+      this.currentRecognition.stop();
+      this.currentRecognition = null;
+    }
+    this.isRecording = false;
+  }
+
+  // ── Keyboard Shortcuts ──
+
+  @HostListener('window:keydown', ['$event'])
+  handleKeyboardShortcut(event: KeyboardEvent) {
+    const ctrlOrMeta = event.ctrlKey || event.metaKey;
+
+    // Ctrl+N / Cmd+N → New chat
+    if (ctrlOrMeta && event.key === 'n') {
+      event.preventDefault();
+      this.newChat();
+      return;
+    }
+
+    // Ctrl+L / Cmd+L → Clear current chat
+    if (ctrlOrMeta && event.key === 'l') {
+      event.preventDefault();
+      this.clearCurrentChat();
+      return;
+    }
+
+    // Escape → Stop generation (if streaming) or close shortcuts help
+    if (event.key === 'Escape') {
+      if (this.showShortcutsHelp) {
+        this.showShortcutsHelp = false;
+        return;
+      }
+      if (this.claude.isStreaming) {
+        event.preventDefault();
+        this.stopGeneration();
+        return;
+      }
+    }
+
+    // Ctrl+/ → Show keyboard shortcuts help
+    if (ctrlOrMeta && event.key === '/') {
+      event.preventDefault();
+      this.showShortcutsHelp = !this.showShortcutsHelp;
+      return;
+    }
+  }
+
+  clearCurrentChat() {
+    // Clear messages without creating a new session
+    this.messages = [];
+    this.currentAssistant = null;
+    this.isWaiting = false;
+    this.currentActivity = '';
+    this.pendingQueue = [];
+    if (this.claude.isStreaming) {
+      this.stopGeneration();
+    }
+    this.cdr.detectChanges();
   }
 
   private scrollToBottom() {
