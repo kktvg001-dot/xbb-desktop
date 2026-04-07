@@ -25,8 +25,8 @@ type WizardStep = 1 | 2 | 3 | 4;
           <h1 class="step-title" style="font-size:32px; margin-bottom:8px;">OpenClaw Assistant</h1>
           <p class="step-desc">Let's set up your AI assistant in under 2 minutes.</p>
           <div class="step-actions">
-            <button class="btn btn-primary btn-full" (click)="startSetup()">
-              Get Started
+            <button class="btn btn-primary btn-full" (click)="startSetup()" [disabled]="isStarting">
+              {{ isStarting ? 'Checking your system...' : 'Get Started' }}
             </button>
           </div>
         </div>
@@ -396,6 +396,7 @@ export class SetupComponent implements OnInit, OnDestroy {
 
   tools: AllToolsStatus | null = null;
   errorMessage = '';
+  isStarting = false;
 
   // Per-step state
   stepStatus: 'idle' | 'installing' | 'done' | 'error' = 'idle';
@@ -512,12 +513,16 @@ export class SetupComponent implements OnInit, OnDestroy {
   }
 
   async startSetup() {
+    this.isStarting = true;
     if (this.browserMode) {
       this.goToStep(2);
       setTimeout(() => this.runMockStep2(), 200);
       return;
     }
-    await this.checkTools();
+    try {
+      await this.checkTools();
+    } catch {}
+    this.isStarting = false;
     this.goToStep(2);
     setTimeout(() => this.runStep2(), 200);
   }
