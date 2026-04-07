@@ -110,17 +110,21 @@ interface ChatMessage {
 
         <!-- Empty state -->
         <div class="empty-state" *ngIf="messages.length === 0 && !claude.isStreaming">
-          <div class="empty-logo">C</div>
-          <h2>What can I help you with?</h2>
+          <div class="empty-logo">✦</div>
+          <h2>OpenClaw Assistant</h2>
+          <p class="empty-desc">Your AI assistant that can read files, run commands, search the web, and help manage your WhatsApp bot — all from this chat.</p>
           <div class="suggestions">
-            <button class="suggestion" (click)="sendExample('Check if my WhatsApp gateway is running')">
-              Check WhatsApp gateway status
+            <button class="suggestion" (click)="sendExample('Help me set up my WhatsApp AI assistant')">
+              🚀 Set up WhatsApp bot
             </button>
-            <button class="suggestion" (click)="sendExample('Show me the current agent configuration')">
-              Show agent configuration
+            <button class="suggestion" (click)="sendExample('Check if everything is running correctly on my system')">
+              🔍 Check my system
             </button>
-            <button class="suggestion" (click)="sendExample('List running services')">
-              List running services
+            <button class="suggestion" (click)="sendExample('My WhatsApp bot is not replying to messages, help me fix it')">
+              🔧 Fix a problem
+            </button>
+            <button class="suggestion" (click)="sendExample('What can you do? Show me your capabilities')">
+              💡 What can you do?
             </button>
           </div>
         </div>

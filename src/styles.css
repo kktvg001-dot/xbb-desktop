@@ -1,37 +1,143 @@
 /* OpenClaw Assistant — Global Styles */
+/* Premium dark-first design system — AionUI inspired */
 
-/* ========== Theme Variables ========== */
+/* ========== Google Fonts ========== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ========== Theme Variables (Dark — default) ========== */
 :root {
-  --bg-primary: #f5f5f5;
+  /* Backgrounds */
+  --bg-primary: #0a0a14;
+  --bg-secondary: #0f0f1e;
+  --bg-sidebar: #0f0f1e;
+  --bg-code: #0d0d1a;
+  --bg-content: #111122;
+  --bg-card: #181830;
+  --bg-hover: #1e1e38;
+  --bg-input: #151528;
+
+  /* Text */
+  --text-primary: #e8e8f0;
+  --text-secondary: #8888aa;
+  --text-heading: #e8e8f0;
+  --text-muted: #555570;
+  --text-faint: #444460;
+
+  /* Accent — purple/blue gradient */
+  --accent: #7c5cfc;
+  --accent-hover: #6a4ae8;
+  --accent-gradient: linear-gradient(135deg, #7c5cfc, #5c8cfc);
+  --accent-glow: rgba(124, 92, 252, 0.25);
+  --accent-glow-strong: rgba(124, 92, 252, 0.5);
+
+  /* Borders */
+  --border: #222240;
+  --border-light: #222240;
+  --border-hover: #333355;
+
+  /* Cards */
+  --card-bg: #181830;
+  --card-shadow: rgba(0, 0, 0, 0.3);
+
+  /* Inputs */
+  --input-bg: #151528;
+  --input-border: #2a2a48;
+
+  /* Buttons */
+  --btn-secondary-bg: #222240;
+  --btn-secondary-text: #c0c0d0;
+
+  /* Code */
+  --code-inline-bg: #1e1e38;
+
+  /* Scrollbar */
+  --scrollbar-thumb: #2a2a48;
+  --scrollbar-thumb-hover: #3a3a58;
+
+  /* Sidebar */
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-text: #c0c0d0;
+  --sidebar-nav-text: #8888a0;
+  --sidebar-logo-text: #eee;
+  --sidebar-nav-hover-bg: rgba(124, 92, 252, 0.06);
+  --sidebar-nav-hover-text: #e0e0e0;
+  --sidebar-version: #555570;
+
+  /* Setup */
+  --setup-bg: linear-gradient(160deg, #0a0a14 0%, #0f0f22 50%, #0d0d1a 100%);
+  --setup-card-bg: #141428;
+  --setup-progress-track: #222240;
+  --setup-progress-text: #6b7280;
+  --setup-title-color: #e8e8f0;
+  --setup-desc-color: #8888aa;
+  --setup-config-bg: #0f0f1e;
+  --setup-config-border: #222240;
+  --setup-config-label: #e8e8f0;
+  --setup-config-value: #8888aa;
+
+  /* Status */
+  --success-bg: #0a2e1a;
+  --success-text: #22c55e;
+  --error-bg: #2e0a0a;
+  --error-text: #ef4444;
+  --error-bg-light: #2e0a0a;
+  --error-text-light: #ef4444;
+  --warning: #f59e0b;
+
+  /* Glass */
+  --glass-bg: rgba(15, 15, 30, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.06);
+}
+
+/* ========== Light Theme ========== */
+[data-theme="light"] {
+  --bg-primary: #f8f9fb;
   --bg-secondary: #ffffff;
-  --bg-sidebar: #1a1a2e;
-  --bg-code: #1a1a2e;
-  --text-primary: #1a1a1a;
+  --bg-sidebar: #ffffff;
+  --bg-code: #1e1e2e;
+  --bg-content: #f0f1f5;
+  --bg-card: #ffffff;
+  --bg-hover: #f0f0f8;
+  --bg-input: #f5f5fa;
+
+  --text-primary: #1a1a2e;
   --text-secondary: #6b7280;
   --text-heading: #1a1a2e;
-  --text-muted: #888;
-  --text-faint: #999;
+  --text-muted: #9ca3af;
+  --text-faint: #b0b0c0;
+
+  --accent: #7c5cfc;
+  --accent-hover: #6a4ae8;
+  --accent-glow: rgba(124, 92, 252, 0.15);
+  --accent-glow-strong: rgba(124, 92, 252, 0.3);
+
   --border: #e5e7eb;
-  --border-light: #ddd;
-  --accent: #00a884;
-  --accent-hover: #009674;
+  --border-light: #e5e7eb;
+  --border-hover: #d1d5db;
+
   --card-bg: #ffffff;
   --card-shadow: rgba(0, 0, 0, 0.06);
-  --input-bg: #ffffff;
-  --input-border: #ddd;
-  --btn-secondary-bg: #e0e0e0;
-  --btn-secondary-text: #333;
-  --code-inline-bg: #f0f0f0;
-  --scrollbar-thumb: #c0c0c0;
-  --scrollbar-thumb-hover: #a0a0a0;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-text: #e0e0e0;
-  --sidebar-nav-text: #b0b0b0;
-  --sidebar-logo-text: #fff;
-  --sidebar-nav-hover-bg: rgba(255, 255, 255, 0.05);
-  --sidebar-nav-hover-text: #fff;
-  --sidebar-version: #666;
-  --setup-bg: linear-gradient(160deg, #f0f4f8 0%, #e2e8f0 50%, #dfe6ed 100%);
+
+  --input-bg: #f5f5fa;
+  --input-border: #e5e7eb;
+
+  --btn-secondary-bg: #e8e8f0;
+  --btn-secondary-text: #555;
+
+  --code-inline-bg: #f0f0f8;
+
+  --scrollbar-thumb: #d0d0e0;
+  --scrollbar-thumb-hover: #b0b0c8;
+
+  --sidebar-border: #e5e7eb;
+  --sidebar-text: #1a1a2e;
+  --sidebar-nav-text: #6b7280;
+  --sidebar-logo-text: #1a1a2e;
+  --sidebar-nav-hover-bg: rgba(124, 92, 252, 0.06);
+  --sidebar-nav-hover-text: #1a1a2e;
+  --sidebar-version: #9ca3af;
+
+  --setup-bg: linear-gradient(160deg, #f0f4f8 0%, #e8ecf2 50%, #dfe6ed 100%);
   --setup-card-bg: #fff;
   --setup-progress-track: #e8ecf0;
   --setup-progress-text: #94a3b8;
@@ -41,61 +147,61 @@
   --setup-config-border: #f1f5f9;
   --setup-config-label: #1e293b;
   --setup-config-value: #64748b;
+
   --success-bg: #e8f5e9;
-  --success-text: #2e7d32;
+  --success-text: #16a34a;
   --error-bg: #fce4ec;
-  --error-text: #c62828;
+  --error-text: #dc2626;
   --error-bg-light: #fef2f2;
   --error-text-light: #dc2626;
+
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.06);
 }
 
-[data-theme="dark"] {
-  --bg-primary: #0f0f1a;
-  --bg-secondary: #1a1a2e;
-  --bg-sidebar: #12121e;
-  --bg-code: #0d0d18;
-  --text-primary: #e0e0e0;
-  --text-secondary: #9ca3af;
-  --text-heading: #e0e0e0;
-  --text-muted: #8b8b9a;
-  --text-faint: #7a7a8a;
-  --border: #2d2d3f;
-  --border-light: #2d2d3f;
-  --accent: #00a884;
-  --accent-hover: #00c49a;
-  --card-bg: #1a1a2e;
-  --card-shadow: rgba(0, 0, 0, 0.3);
-  --input-bg: #12121e;
-  --input-border: #2d2d3f;
-  --btn-secondary-bg: #2d2d3f;
-  --btn-secondary-text: #ccc;
-  --code-inline-bg: #1a1a2e;
-  --scrollbar-thumb: #3a3a4f;
-  --scrollbar-thumb-hover: #4a4a60;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
-  --sidebar-text: #c0c0d0;
-  --sidebar-nav-text: #8888a0;
-  --sidebar-logo-text: #eee;
-  --sidebar-nav-hover-bg: rgba(255, 255, 255, 0.04);
-  --sidebar-nav-hover-text: #e0e0e0;
-  --sidebar-version: #555;
-  --setup-bg: linear-gradient(160deg, #0f0f1a 0%, #151525 50%, #12121e 100%);
-  --setup-card-bg: #1a1a2e;
-  --setup-progress-track: #2d2d3f;
-  --setup-progress-text: #6b7280;
-  --setup-title-color: #e0e0e0;
-  --setup-desc-color: #9ca3af;
-  --setup-config-bg: #12121e;
-  --setup-config-border: #2d2d3f;
-  --setup-config-label: #e0e0e0;
-  --setup-config-value: #9ca3af;
-  --success-bg: #0a2e1a;
-  --success-text: #4caf50;
-  --error-bg: #2e0a0a;
-  --error-text: #f44336;
-  --error-bg-light: #2e0a0a;
-  --error-text-light: #f44336;
+/* ========== Animations ========== */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(124, 92, 252, 0.3); }
+  50% { box-shadow: 0 0 16px rgba(124, 92, 252, 0.6); }
+}
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6px); }
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--accent-glow); }
+  50% { opacity: 0.85; box-shadow: 0 0 20px var(--accent-glow-strong); }
+}
+
+@keyframes statusPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+}
+
+/* ========== Base Reset ========== */
 
 *,
 *::before,
@@ -103,20 +209,32 @@
   box-sizing: border-box;
 }
 
+/* Smooth transitions on theme-sensitive properties */
+*, *::before, *::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease, box-shadow 0.2s ease;
+}
+
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--text-primary);
   background: var(--bg-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar styling */
+/* ========== Headings ========== */
+h1, h2, h3, h4 {
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--text-heading);
+}
+
+/* ========== Scrollbar ========== */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -131,25 +249,27 @@ html, body {
   background: var(--scrollbar-thumb-hover);
 }
 
-/* Selection */
+/* ========== Selection ========== */
 ::selection {
-  background: rgba(0, 168, 132, 0.2);
+  background: rgba(124, 92, 252, 0.25);
+  color: #fff;
 }
 
-/* Code blocks inside chat */
+/* ========== Code ========== */
 pre {
   background: var(--bg-code);
   color: #e0e0e0;
-  padding: 12px 14px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  font-size: 13px;
   overflow-x: auto;
-  line-height: 1.5;
+  line-height: 1.6;
   margin: 8px 0;
+  border: 1px solid var(--border);
 }
 
 code {
-  font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
   font-size: 13px;
 }
 
@@ -159,24 +279,61 @@ code {
   border-radius: 4px;
   font-size: 12px;
   color: var(--text-primary);
+  border: 1px solid var(--border);
 }
 
-/* Links */
+/* ========== Links ========== */
 a {
   color: var(--accent);
   text-decoration: none;
+  position: relative;
 }
 a:hover {
-  text-decoration: underline;
+  color: var(--accent-hover);
+}
+a::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+a:hover::after {
+  width: 100%;
 }
 
-/* Focus outlines */
+/* ========== Focus ========== */
 *:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* Drag region for macOS title bar */
+/* ========== Buttons — micro-interactions ========== */
+button {
+  transition: all 0.15s ease;
+}
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ========== Cards — lift on hover ========== */
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* ========== Glassmorphism utility ========== */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+}
+
+/* ========== Drag region for macOS title bar ========== */
 .titlebar-drag {
   -webkit-app-region: drag;
 }

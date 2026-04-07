@@ -68,12 +68,15 @@ import { Subscription, filter } from 'rxjs';
       overflow: hidden;
     }
     .sidebar {
-      width: 220px;
+      width: 200px;
       background: var(--bg-sidebar);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       color: var(--sidebar-text);
       display: flex;
       flex-direction: column;
       flex-shrink: 0;
+      border-right: 1px solid var(--sidebar-border);
     }
     .sidebar-header {
       padding: 20px 16px;
@@ -85,73 +88,117 @@ import { Subscription, filter } from 'rxjs';
       gap: 10px;
     }
     .logo-icon {
-      font-size: 24px;
-      color: var(--accent);
+      font-size: 22px;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
     .logo-text {
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 700;
-      color: var(--sidebar-logo-text);
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.3px;
     }
     .nav-list {
       list-style: none;
       margin: 0;
-      padding: 12px 0;
+      padding: 12px 8px;
       flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
     }
     .nav-item {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 12px 20px;
+      gap: 10px;
+      padding: 10px 12px;
       color: var(--sidebar-nav-text);
       text-decoration: none;
-      font-size: 14px;
-      transition: all 0.15s ease;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s ease;
       border-left: 3px solid transparent;
+      border-radius: 0 8px 8px 0;
+      position: relative;
+    }
+    .nav-item::after {
+      display: none;
     }
     .nav-item:hover {
       background: var(--sidebar-nav-hover-bg);
       color: var(--sidebar-nav-hover-text);
+      transform: translateX(2px);
     }
     .nav-item.active {
-      background: rgba(0, 168, 132, 0.1);
+      background: rgba(124, 92, 252, 0.1);
       color: var(--accent);
       border-left-color: var(--accent);
+      box-shadow: inset 0 0 16px rgba(124, 92, 252, 0.05);
     }
     .nav-icon {
-      font-size: 18px;
-      width: 24px;
-      text-align: center;
+      font-size: 16px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: var(--bg-hover);
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+    .nav-item:hover .nav-icon {
+      background: rgba(124, 92, 252, 0.15);
+      transform: scale(1.05);
+    }
+    .nav-item.active .nav-icon {
+      background: rgba(124, 92, 252, 0.2);
+      box-shadow: 0 0 10px rgba(124, 92, 252, 0.15);
     }
     .sidebar-footer {
-      padding: 16px;
+      padding: 14px 12px;
       border-top: 1px solid var(--sidebar-border);
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
     .theme-toggle {
-      background: none;
+      background: var(--bg-hover);
       border: 1px solid var(--sidebar-border);
-      border-radius: 8px;
-      padding: 6px 10px;
-      font-size: 16px;
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 14px;
       cursor: pointer;
       line-height: 1;
-      transition: background 0.15s ease;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     .theme-toggle:hover {
-      background: var(--sidebar-nav-hover-bg);
+      background: rgba(124, 92, 252, 0.1);
+      border-color: var(--accent);
+      box-shadow: 0 0 12px rgba(124, 92, 252, 0.1);
     }
     .version {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--sidebar-version);
+      font-family: 'JetBrains Mono', monospace;
     }
     .main-content {
       flex: 1;
       overflow-y: auto;
       background: var(--bg-primary);
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
   `],
 })
