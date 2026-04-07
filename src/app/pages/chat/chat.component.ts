@@ -19,6 +19,7 @@ interface ChatMessage {
   tools: ToolBlock[];
   error?: string;
   thinking?: string;
+  imageBase64?: string;
 }
 
 @Component({
@@ -54,7 +55,12 @@ interface ChatMessage {
           <ng-container *ngFor="let msg of messages; let i = index">
             <!-- User message -->
             <div class="msg-row msg-user" *ngIf="msg.role === 'user'">
-              <div class="user-bubble">{{ msg.content }}</div>
+              <img *ngIf="msg.imageBase64"
+                [src]="'data:image/png;base64,' + msg.imageBase64"
+                class="user-image"
+                (click)="previewImage(msg.imageBase64!)"
+                alt="Sent image" />
+              <div class="user-bubble" *ngIf="msg.content">{{ msg.content }}</div>
             </div>
 
             <!-- Assistant message -->
@@ -146,6 +152,10 @@ interface ChatMessage {
         </div>
       </div>
     </div>
+    <!-- Image lightbox -->
+    <div class="image-lightbox" *ngIf="lightboxImage" (click)="lightboxImage = null">
+      <img [src]="'data:image/png;base64,' + lightboxImage" alt="Preview" />
+    </div>
   `,
   styles: [`
     :host {
@@ -234,6 +244,30 @@ interface ChatMessage {
     /* ── User messages ── */
     .msg-user {
       align-items: flex-end;
+    }
+    .user-image {
+      max-width: 250px;
+      max-height: 200px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      margin-bottom: 4px;
+    }
+    .user-image:hover { opacity: 0.85; }
+    .image-lightbox {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      cursor: pointer;
+    }
+    .image-lightbox img {
+      max-width: 90vw;
+      max-height: 90vh;
+      border-radius: 8px;
     }
     .user-bubble {
       background: #059669;
@@ -554,6 +588,11 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
   isWaiting = false;
   pendingImageBase64: string | null = null;
   isDragging = false;
+  lightboxImage: string | null = null;
+
+  previewImage(base64: string) {
+    this.lightboxImage = base64;
+  }
   private dragCounter = 0;
   private streamSub: Subscription | null = null;
   private shouldScroll = false;
@@ -657,8 +696,8 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
     const image = this.pendingImageBase64;
     if ((!text && !image) || this.claude.isStreaming) return;
 
-    const displayContent = image ? (text || '(image)') : text;
-    this.messages.push({ role: 'user', content: displayContent, tools: [] });
+    const displayContent = text || '';
+    this.messages.push({ role: 'user', content: displayContent, tools: [], imageBase64: image || undefined });
     this.inputText = '';
     this.pendingImageBase64 = null;
     this.shouldScroll = true;
