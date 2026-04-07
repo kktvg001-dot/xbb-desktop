@@ -685,7 +685,7 @@ export class AcpConnection {
   }
 
   isConnected(): boolean {
-    return this.child !== null && !this.child.killed;
+    return this.child !== null && !this.child.killed && this.child.exitCode === null;
   }
 
   async disconnect(): Promise<void> {

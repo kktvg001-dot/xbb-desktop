@@ -632,10 +632,8 @@ ipcMain.handle('claude-chat', async (_event, message: string, workDir: string, i
       };
 
       acpConnection.onDisconnect = (info) => {
-        mainWindow?.webContents.send('claude-stream', {
-          type: 'error',
-          content: `ACP process disconnected (code: ${info.code}, signal: ${info.signal})`,
-        });
+        // Mark connection as dead so next message auto-reconnects
+        acpConnection = null;
       };
 
       // Connect with API keys in spawn environment
