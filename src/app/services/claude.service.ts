@@ -43,6 +43,7 @@ export class ClaudeService {
 
     window.electronAPI.onClaudeStream((data: any) => {
       this.ngZone.run(() => {
+        console.log('[STREAM RECEIVED]', data.type, data.content?.substring(0, 30) || '');
         // Handle our ACP StreamChunk format
         if (data.type === 'text' && data.content) {
           subject.next(data.content);
