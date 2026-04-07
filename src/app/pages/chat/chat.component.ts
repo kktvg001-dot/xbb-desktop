@@ -21,6 +21,7 @@ interface ChatMessage {
   thinking?: string;
   imageBase64?: string;
   showTools?: boolean;
+  queued?: boolean;
 }
 
 @Component({
@@ -61,7 +62,10 @@ interface ChatMessage {
                 class="user-image"
                 (click)="previewImage(msg.imageBase64!)"
                 alt="Sent image" />
-              <div class="user-bubble" *ngIf="msg.content">{{ msg.content }}</div>
+              <div class="user-bubble" *ngIf="msg.content" [class.queued-msg]="msg.queued">
+                {{ msg.content }}
+                <span class="queued-tag" *ngIf="msg.queued">queued</span>
+              </div>
             </div>
 
             <!-- Assistant message -->
@@ -158,7 +162,7 @@ interface ChatMessage {
             (input)="autoResize($event)"
             [placeholder]="claude.isStreaming ? 'Type to queue message...' : 'Message Claude...'"
             rows="1"></textarea>
-          <div class="queued-badge" *ngIf="pendingQueue.length > 0">{{ pendingQueue.length }} queued</div>
+          <!-- queued messages now shown in conversation list -->
           <button
             *ngIf="claude.isStreaming"
             class="stop-btn"
@@ -688,7 +692,20 @@ interface ChatMessage {
       background: #dc2626;
     }
 
-    /* ── Queued badge ── */
+    /* ── Queued message styles ── */
+    .queued-msg {
+      opacity: 0.6;
+      background: #6b7280 !important;
+    }
+    .queued-tag {
+      display: inline-block;
+      font-size: 10px;
+      background: rgba(255,255,255,0.3);
+      border-radius: 8px;
+      padding: 1px 6px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
     .queued-badge {
       font-size: 11px;
       color: #059669;
@@ -840,14 +857,16 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
     const image = this.pendingImageBase64;
     if (!text && !image) return;
 
-    // Queue the message if Claude is currently streaming
+    // Queue the message if Claude is currently streaming — show it in the conversation
     if (this.claude.isStreaming) {
+      this.messages.push({ role: 'user', content: text, tools: [], imageBase64: image || undefined, queued: true });
       this.pendingQueue.push(text);
       this.inputText = '';
       this.pendingImageBase64 = null;
       if (this.inputField?.nativeElement) {
         this.inputField.nativeElement.style.height = 'auto';
       }
+      this.shouldScroll = true;
       return;
     }
 
