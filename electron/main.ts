@@ -915,6 +915,14 @@ ipcMain.handle('auth-get-user', async () => {
   return user;
 });
 
+ipcMain.handle('auth-restore-session', async () => {
+  if (mainWindow) {
+    await auth.restoreSessionCookies(mainWindow);
+    return { success: true };
+  }
+  return { success: false };
+});
+
 ipcMain.handle('auth-logout', async () => {
   auth.clearAuth();
   // Reset to defaults

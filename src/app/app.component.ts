@@ -21,8 +21,8 @@ import { Subscription, filter } from 'rxjs';
             </a>
           </li>
           <li>
-            <a routerLink="/status" routerLinkActive="active" class="nav-item">
-              <span class="nav-icon">📊</span> Status
+            <a routerLink="/dashboard" routerLinkActive="active" class="nav-item">
+              <span class="nav-icon">📊</span> API
             </a>
           </li>
           <li>

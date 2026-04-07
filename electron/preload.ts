@@ -46,5 +46,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Auth
   authLoginGoogle: () => ipcRenderer.invoke('auth-login-google'),
   authGetUser: () => ipcRenderer.invoke('auth-get-user'),
+  authRestoreSession: () => ipcRenderer.invoke('auth-restore-session'),
   authLogout: () => ipcRenderer.invoke('auth-logout'),
 });

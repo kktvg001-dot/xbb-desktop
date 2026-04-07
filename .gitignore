@@ -4,3 +4,4 @@ release/
 .angular/
 *.js.map
 .env
+log-receiver/received-logs/
