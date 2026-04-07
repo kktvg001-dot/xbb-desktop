@@ -39,7 +39,15 @@ function createWindow() {
   if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:4200');
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../browser/index.html'));
+    // Try multiple paths — structure differs between dev build and packaged app
+    const possiblePaths = [
+      path.join(__dirname, '../browser/index.html'),           // dev build: dist/electron/../browser/
+      path.join(__dirname, '../../dist/browser/index.html'),   // alt dev
+      path.join(app.getAppPath(), 'dist/browser/index.html'),  // packaged app
+      path.join(app.getAppPath(), 'browser/index.html'),       // packaged flat
+    ];
+    const indexPath = possiblePaths.find(p => fs.existsSync(p)) || possiblePaths[0];
+    mainWindow.loadFile(indexPath);
   }
 
   // Close button minimizes to tray instead of quitting
