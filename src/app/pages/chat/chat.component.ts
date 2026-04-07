@@ -253,6 +253,13 @@ interface ChatMessage {
         </div>
       </div>
 
+      <!-- Follow-up suggestions after response -->
+      <div class="follow-ups" *ngIf="followUpSuggestions.length > 0 && !claude.isStreaming">
+        <button class="follow-up-btn" *ngFor="let s of followUpSuggestions" (click)="sendFollowUp(s)">
+          {{ s }}
+        </button>
+      </div>
+
       <!-- Drag-drop overlay -->
       <div class="drop-overlay" *ngIf="isDragging"
         (dragover)="onDragOver($event)"
@@ -359,28 +366,29 @@ interface ChatMessage {
     .conv-sidebar {
       width: 250px;
       min-width: 250px;
-      background: #16162a;
+      background: var(--bg-sidebar);
       display: flex;
       flex-direction: column;
-      border-right: 1px solid rgba(255,255,255,0.06);
+      border-right: 1px solid var(--border);
       overflow: hidden;
     }
 
     .new-chat-btn {
       margin: 12px;
       padding: 10px 16px;
-      background: #059669;
+      background: var(--accent-gradient);
       color: #fff;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: all 0.2s ease;
       flex-shrink: 0;
     }
     .new-chat-btn:hover {
-      background: #047857;
+      box-shadow: 0 4px 16px var(--accent-glow);
+      transform: translateY(-1px);
     }
 
     .conv-list {
@@ -395,7 +403,7 @@ interface ChatMessage {
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: #666;
+      color: var(--text-muted);
     }
 
     .conv-item {
@@ -403,36 +411,38 @@ interface ChatMessage {
       align-items: center;
       padding: 8px 12px 8px 16px;
       cursor: pointer;
-      transition: background 0.1s;
+      transition: all 0.15s ease;
       border-left: 3px solid transparent;
       position: relative;
+      border-radius: 0 8px 8px 0;
+      margin-right: 8px;
     }
     .conv-item:hover {
-      background: rgba(255,255,255,0.05);
+      background: var(--bg-hover);
     }
     .conv-item.conv-active {
-      background: rgba(5, 150, 105, 0.12);
-      border-left-color: #059669;
+      background: rgba(124, 92, 252, 0.1);
+      border-left-color: var(--accent);
     }
 
     .conv-title {
       flex: 1;
       min-width: 0;
-      color: #ccc;
+      color: var(--text-secondary);
       font-size: 13px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     .conv-item.conv-active .conv-title {
-      color: #fff;
+      color: var(--text-primary);
     }
 
     .conv-delete {
       display: none;
       background: none;
       border: none;
-      color: #888;
+      color: var(--text-muted);
       font-size: 16px;
       cursor: pointer;
       padding: 2px 4px;
@@ -450,7 +460,7 @@ interface ChatMessage {
 
     .conv-empty {
       padding: 20px 16px;
-      color: #555;
+      color: var(--text-muted);
       font-size: 13px;
       text-align: center;
     }
@@ -463,17 +473,17 @@ interface ChatMessage {
       z-index: 50;
       width: 32px;
       height: 32px;
-      background: #1a1a2e;
-      color: #ccc;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 6px;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
       font-size: 16px;
       cursor: pointer;
       align-items: center;
       justify-content: center;
     }
     .sidebar-toggle:hover {
-      background: #252540;
+      background: var(--bg-hover);
     }
 
     @media (max-width: 768px) {
@@ -484,10 +494,11 @@ interface ChatMessage {
         bottom: 0;
         z-index: 40;
         transform: translateX(-100%);
-        transition: transform 0.2s ease;
+        transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
       }
       .conv-sidebar.conv-sidebar-open {
         transform: translateX(0);
+        box-shadow: 8px 0 24px rgba(0, 0, 0, 0.3);
       }
       .sidebar-toggle {
         display: flex;
@@ -500,8 +511,8 @@ interface ChatMessage {
       height: 100%;
       flex: 1;
       min-width: 0;
-      background: #f9f9f9;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     /* ── Model selector header ── */
@@ -509,48 +520,51 @@ interface ChatMessage {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 6px 16px;
-      border-bottom: 1px solid #e5e7eb;
-      background: #fff;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-secondary);
       flex-shrink: 0;
     }
 
     .model-select {
       font-size: 12px;
-      padding: 4px 20px 4px 10px;
-      border-radius: 12px;
-      border: 1px solid #e5e7eb;
-      background: transparent;
-      color: #6b7280;
+      padding: 5px 24px 5px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text-secondary);
       outline: none;
       cursor: pointer;
       appearance: none;
       -webkit-appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238888aa' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
-      background-position: right 6px center;
-      transition: border-color 0.15s;
+      background-position: right 8px center;
+      transition: all 0.2s ease;
     }
     .model-select:hover {
-      border-color: #9ca3af;
+      border-color: var(--border-hover);
     }
     .model-select:focus {
-      border-color: #059669;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-glow);
     }
 
     .model-custom-input {
       font-size: 12px;
-      padding: 4px 10px;
-      border-radius: 12px;
-      border: 1px solid #e5e7eb;
-      background: transparent;
-      color: #374151;
+      font-family: 'Inter', sans-serif;
+      padding: 5px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text-primary);
       outline: none;
       width: 180px;
-      transition: border-color 0.15s;
+      transition: all 0.2s ease;
     }
     .model-custom-input:focus {
-      border-color: #059669;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-glow);
     }
 
     /* ── Messages area ── */
@@ -576,45 +590,55 @@ interface ChatMessage {
       justify-content: center;
       height: 70vh;
       text-align: center;
+      animation: emptyFadeIn 0.5s ease;
+    }
+    @keyframes emptyFadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .empty-logo {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: #1a1a2e;
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: var(--accent-gradient);
       color: #fff;
-      font-size: 24px;
+      font-size: 26px;
       font-weight: 700;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 24px var(--accent-glow);
     }
     .empty-state h2 {
-      font-size: 22px;
-      font-weight: 600;
-      color: #1a1a1a;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
       margin: 0 0 24px;
+      letter-spacing: -0.5px;
     }
     .suggestions {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 10px;
       justify-content: center;
     }
     .suggestion {
-      background: #fff;
-      border: 1px solid #e0e0e0;
-      border-radius: 20px;
-      padding: 8px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 18px;
       font-size: 13px;
-      color: #444;
+      color: var(--text-secondary);
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.2s ease;
     }
     .suggestion:hover {
-      border-color: #999;
-      color: #111;
+      border-color: var(--accent);
+      color: var(--text-primary);
+      background: var(--bg-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px var(--accent-glow);
     }
 
     /* ── Message rows ── */
@@ -626,20 +650,26 @@ interface ChatMessage {
     /* ── User messages ── */
     .msg-user {
       align-items: flex-end;
+      animation: msgSlideInRight 0.3s ease;
+    }
+    @keyframes msgSlideInRight {
+      from { opacity: 0; transform: translateX(16px); }
+      to { opacity: 1; transform: translateX(0); }
     }
     .user-image {
       max-width: 250px;
       max-height: 200px;
       border-radius: 12px;
       cursor: pointer;
-      transition: opacity 0.2s;
+      transition: all 0.2s ease;
       margin-bottom: 4px;
     }
-    .user-image:hover { opacity: 0.85; }
+    .user-image:hover { opacity: 0.85; transform: scale(0.98); }
     .image-lightbox {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.8);
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(8px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -649,30 +679,37 @@ interface ChatMessage {
     .image-lightbox img {
       max-width: 90vw;
       max-height: 90vh;
-      border-radius: 8px;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     }
     .user-bubble {
-      background: #059669;
+      background: var(--accent-gradient);
       color: #fff;
-      padding: 8px 14px;
+      padding: 10px 16px;
       border-radius: 18px 18px 4px 18px;
       font-size: 14px;
-      line-height: 1.5;
+      line-height: 1.6;
       max-width: 75%;
       white-space: pre-wrap;
       word-break: break-word;
+      box-shadow: 0 2px 8px var(--accent-glow);
     }
 
     /* ── Assistant messages ── */
     .msg-assistant {
       align-items: flex-start;
       gap: 8px;
+      animation: msgSlideInLeft 0.3s ease;
+    }
+    @keyframes msgSlideInLeft {
+      from { opacity: 0; transform: translateX(-16px); }
+      to { opacity: 1; transform: translateX(0); }
     }
 
     .assistant-text {
       font-size: 14px;
       line-height: 1.7;
-      color: #1a1a1a;
+      color: var(--text-primary);
       max-width: 100%;
       word-break: break-word;
     }
@@ -683,12 +720,45 @@ interface ChatMessage {
 
     /* ── Code blocks ── */
     .code-block-wrapper { position: relative; margin: 12px 0; }
-    .code-block-header { display: flex; justify-content: space-between; align-items: center; background: #2d2d3f; padding: 6px 12px; border-radius: 8px 8px 0 0; font-size: 12px; color: #8b8b9b; }
-    .code-lang { font-family: monospace; }
-    .copy-btn { background: none; border: 1px solid #4a4a5a; color: #8b8b9b; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit; }
-    .copy-btn:hover { color: #fff; border-color: #fff; }
-    .copy-btn.copied { color: #00a884; border-color: #00a884; }
-    pre.code-block { background: #1e1e2e; color: #e0e0e0; padding: 16px; margin: 0; border-radius: 0 0 8px 8px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace; }
+    .code-block-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1a1a30;
+      padding: 8px 14px;
+      border-radius: 10px 10px 0 0;
+      font-size: 12px;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-bottom: none;
+    }
+    .code-lang { font-family: 'JetBrains Mono', monospace; }
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 3px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+    .copy-btn:hover { color: #fff; border-color: var(--accent); }
+    .copy-btn.copied { color: var(--accent); border-color: var(--accent); }
+    pre.code-block {
+      background: #0d0d1a;
+      color: #e0e0e0;
+      padding: 16px;
+      margin: 0;
+      border-radius: 0 0 10px 10px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.6;
+      font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+      border: 1px solid var(--border);
+      border-top: none;
+    }
     pre.code-block code { font-family: inherit; background: none; padding: 0; }
 
     /* ── Thinking ── */
@@ -697,12 +767,12 @@ interface ChatMessage {
       align-items: baseline;
       gap: 8px;
       font-size: 12px;
-      color: #888;
+      color: var(--text-muted);
       padding: 4px 0;
     }
     .thinking-label {
       font-weight: 600;
-      color: #aaa;
+      color: var(--accent);
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -710,14 +780,14 @@ interface ChatMessage {
     }
     .thinking-text {
       font-style: italic;
-      color: #999;
+      color: var(--text-muted);
     }
 
     /* ── Tool summary ── */
     .tool-summary {
-      background: #fff;
-      border: 1px solid #e5e5e5;
-      border-radius: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
       overflow: hidden;
       font-size: 13px;
       max-width: 100%;
@@ -726,22 +796,23 @@ interface ChatMessage {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 12px;
+      padding: 10px 14px;
       cursor: pointer;
       user-select: none;
-      background: #fafafa;
+      background: var(--bg-card);
+      transition: background 0.15s ease;
     }
     .tool-summary-header:hover {
-      background: #f0f0f0;
+      background: var(--bg-hover);
     }
     .tool-summary-text {
       font-weight: 600;
-      color: #333;
+      color: var(--text-primary);
       flex: 1;
       min-width: 0;
     }
     .tool-details {
-      border-top: 1px solid #eee;
+      border-top: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       gap: 0;
@@ -758,43 +829,46 @@ interface ChatMessage {
 
     /* ── Tool cards ── */
     .tool-card {
-      background: #fff;
-      border: 1px solid #e5e5e5;
-      border-radius: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
       overflow: hidden;
       font-size: 13px;
       max-width: 100%;
+      transition: border-color 0.2s ease;
     }
     .tool-card.tool-running {
-      border-color: #d4a574;
+      border-color: #f59e0b;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.1);
     }
     .tool-card.tool-done {
-      border-color: #e5e5e5;
+      border-color: var(--border);
     }
     .tool-header {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 12px;
+      padding: 10px 14px;
       cursor: pointer;
       user-select: none;
-      background: #fafafa;
+      background: var(--bg-card);
+      transition: background 0.15s ease;
     }
     .tool-header:hover {
-      background: #f0f0f0;
+      background: var(--bg-hover);
     }
     .tool-icon {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #059669;
+      color: var(--accent);
       font-size: 12px;
       flex-shrink: 0;
     }
     .tool-card.tool-running .tool-icon {
-      color: #d97706;
+      color: #f59e0b;
     }
     .spinner {
       animation: spin 1s linear infinite;
@@ -805,12 +879,12 @@ interface ChatMessage {
     }
     .tool-name {
       font-weight: 600;
-      color: #333;
+      color: var(--text-primary);
       flex-shrink: 0;
     }
     .tool-input-preview {
-      color: #888;
-      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
       font-size: 12px;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -819,12 +893,12 @@ interface ChatMessage {
       min-width: 0;
     }
     .tool-expand {
-      color: #aaa;
+      color: var(--text-muted);
       font-size: 10px;
       flex-shrink: 0;
     }
     .tool-body {
-      border-top: 1px solid #eee;
+      border-top: 1px solid var(--border);
       max-height: 300px;
       overflow-y: auto;
     }
@@ -833,30 +907,33 @@ interface ChatMessage {
       padding: 8px 12px;
     }
     .tool-input-full {
-      background: #f8f8f8;
+      background: var(--bg-input);
     }
     .tool-output {
-      background: #fafafa;
-      border-top: 1px solid #f0f0f0;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
     }
     .tool-body pre {
       margin: 0;
-      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
       font-size: 12px;
-      line-height: 1.5;
+      line-height: 1.6;
       white-space: pre-wrap;
       word-break: break-all;
-      color: #444;
+      color: var(--text-secondary);
+      border: none;
+      background: transparent;
+      padding: 0;
     }
 
     /* ── File change tool card ── */
     .tool-card.tool-file-change.tool-done {
-      border-color: #86efac;
+      border-color: rgba(34, 197, 94, 0.3);
     }
 
     /* ── Diff viewer ── */
     .diff-container {
-      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
       font-size: 12px;
       line-height: 1.6;
     }
@@ -1324,6 +1401,7 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   lightboxImage: string | null = null;
   currentActivity = 'Thinking...';
   pendingQueue: string[] = [];
+  followUpSuggestions: string[] = [];
 
   // Speech input state
   isRecording = false;
@@ -1606,6 +1684,9 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         }
         this.currentAssistant = null;
 
+        // Generate follow-up suggestions based on response
+        this.followUpSuggestions = this.generateFollowUps(assistantMsg.content, assistantMsg.tools);
+
         // Save conversation after response completes
         this.saveCurrentConversation();
 
@@ -1791,6 +1872,46 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   truncate(text: string, max: number): string {
     if (!text) return '';
     return text.length > max ? text.substring(0, max) + '...' : text;
+  }
+
+  generateFollowUps(content: string, tools: ToolBlock[]): string[] {
+    const suggestions: string[] = [];
+    const lower = (content || '').toLowerCase();
+    const hadTools = tools.length > 0;
+    const hadFileOps = tools.some(t =>
+      (t.name || '').match(/edit|write|read|find|grep/i)
+    );
+
+    // Context-aware suggestions
+    if (lower.includes('error') || lower.includes('failed') || lower.includes('not found')) {
+      suggestions.push('Can you try a different approach?');
+      suggestions.push('Show me the error details');
+    } else if (lower.includes('installed') || lower.includes('set up') || lower.includes('configured')) {
+      suggestions.push('Verify everything is working');
+      suggestions.push('What should I do next?');
+    } else if (lower.includes('whatsapp') || lower.includes('openclaw')) {
+      suggestions.push('Check WhatsApp connection status');
+      suggestions.push('Show me the current configuration');
+    } else if (hadFileOps) {
+      suggestions.push('Show me what you changed');
+      suggestions.push('Undo the last change');
+    } else if (hadTools) {
+      suggestions.push('Explain what you just did');
+      suggestions.push('Is there anything else to check?');
+    }
+
+    // Always add a generic useful one
+    if (suggestions.length < 3) {
+      suggestions.push('Tell me more');
+    }
+
+    return suggestions.slice(0, 3);
+  }
+
+  sendFollowUp(text: string) {
+    this.followUpSuggestions = [];
+    this.inputText = text;
+    this.send();
   }
 
   hasRunningTools(msg: ChatMessage): boolean {
