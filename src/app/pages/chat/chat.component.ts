@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ClaudeService, StreamEvent, ConversationEntry } from '../../services/claude.service';
@@ -11,6 +11,16 @@ interface ToolBlock {
   status: string;
   output: string;
   expanded: boolean;
+  /** For Edit/Write tools: parsed diff data */
+  diffData?: DiffData;
+}
+
+interface DiffData {
+  filePath: string;
+  type: 'edit' | 'write';
+  oldString?: string;
+  newString?: string;
+  content?: string;
 }
 
 interface ChatMessage {
@@ -524,6 +534,16 @@ interface ChatMessage {
     /* Markdown rendered content */
     .assistant-text :first-child { margin-top: 0; }
     .assistant-text :last-child { margin-bottom: 0; }
+
+    /* ── Code blocks ── */
+    .code-block-wrapper { position: relative; margin: 12px 0; }
+    .code-block-header { display: flex; justify-content: space-between; align-items: center; background: #2d2d3f; padding: 6px 12px; border-radius: 8px 8px 0 0; font-size: 12px; color: #8b8b9b; }
+    .code-lang { font-family: monospace; }
+    .copy-btn { background: none; border: 1px solid #4a4a5a; color: #8b8b9b; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit; }
+    .copy-btn:hover { color: #fff; border-color: #fff; }
+    .copy-btn.copied { color: #00a884; border-color: #00a884; }
+    pre.code-block { background: #1e1e2e; color: #e0e0e0; padding: 16px; margin: 0; border-radius: 0 0 8px 8px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace; }
+    pre.code-block code { font-family: inherit; background: none; padding: 0; }
 
     /* ── Thinking ── */
     .thinking-block {
@@ -1370,32 +1390,53 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   formatMarkdown(content: string): string {
-    let html = content
+    // Extract code blocks first, replace with placeholders
+    const codeBlocks: string[] = [];
+    let processed = content.replace(/```(\w*)\n([\s\S]*?)```/g, (_match, lang: string, code: string) => {
+      const escapedCode = code
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      // Store raw code for clipboard (escape single quotes and backslashes for JS string)
+      const rawForClipboard = code.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+      const langLabel = lang || 'code';
+      const block = `<div class="code-block-wrapper"><div class="code-block-header"><span class="code-lang">${langLabel}</span><button class="copy-btn" onclick="navigator.clipboard.writeText('${rawForClipboard}');this.textContent='Copied!';this.classList.add('copied');setTimeout(()=>{this.textContent='Copy';this.classList.remove('copied')},2000)">Copy</button></div><pre class="code-block"><code>${escapedCode}</code></pre></div>`;
+      codeBlocks.push(block);
+      return `%%CODEBLOCK_${codeBlocks.length - 1}%%`;
+    });
+
+    // Escape HTML in remaining text
+    processed = processed
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
 
-    // Code blocks
-    html = html.replace(/```(\w*)\n([\s\S]*?)```/g,
-      '<pre style="background:#f4f4f5;padding:12px;border-radius:6px;overflow-x:auto;font-size:12px;line-height:1.5;margin:8px 0"><code>$2</code></pre>');
     // Inline code
-    html = html.replace(/`([^`]+)`/g,
-      '<code style="background:#f4f4f5;padding:1px 5px;border-radius:3px;font-size:12px">$1</code>');
+    processed = processed.replace(/`([^`]+)`/g,
+      '<code style="background:#2d2d3f;color:#e0e0e0;padding:1px 5px;border-radius:3px;font-size:12px">$1</code>');
     // Bold
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     // Italic
-    html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+    processed = processed.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
     // Unordered lists
-    html = html.replace(/^[-*] (.+)$/gm, '<li style="margin-left:20px;margin-bottom:2px">$1</li>');
+    processed = processed.replace(/^[-*] (.+)$/gm, '<li style="margin-left:20px;margin-bottom:2px">$1</li>');
     // Ordered lists
-    html = html.replace(/^\d+\. (.+)$/gm, '<li style="margin-left:20px;margin-bottom:2px">$1</li>');
+    processed = processed.replace(/^\d+\. (.+)$/gm, '<li style="margin-left:20px;margin-bottom:2px">$1</li>');
     // Line breaks (not inside pre blocks)
-    html = html.replace(/\n/g, '<br>');
+    processed = processed.replace(/\n/g, '<br>');
     // Clean up double breaks after block elements
-    html = html.replace(/(<\/pre>)<br>/g, '$1');
-    html = html.replace(/(<\/li>)<br>/g, '$1');
+    processed = processed.replace(/(<\/li>)<br>/g, '$1');
 
-    return html;
+    // Restore code blocks
+    codeBlocks.forEach((block, i) => {
+      processed = processed.replace(`%%CODEBLOCK_${i}%%`, block);
+    });
+
+    // Clean up breaks around code blocks
+    processed = processed.replace(/<br>(%%CODEBLOCK_|<div class="code-block-wrapper">)/g, '$1');
+    processed = processed.replace(/(<\/div>)<br>/g, '$1');
+
+    return processed;
   }
 
   private scrollToBottom() {
