@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as https from 'https';
+import { AcpConnection } from './acp';
 
 // ============ GLOBAL ERROR HANDLERS ============
 process.on('uncaughtException', (err) => {
@@ -24,6 +25,28 @@ const CONFIG = {
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
+
+// ACP connection state — persistent across messages
+let acpConnection: AcpConnection | null = null;
+let lastSessionId: string | null = null;
+
+// Persist sessionId to disk for cross-restart resume
+const SESSION_FILE = path.join(os.homedir(), '.openclaw', '.acp-session');
+
+function saveSessionId(id: string) {
+  try {
+    const dir = path.dirname(SESSION_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(SESSION_FILE, id, 'utf8');
+  } catch {}
+}
+
+function loadSessionId(): string | null {
+  try {
+    if (fs.existsSync(SESSION_FILE)) return fs.readFileSync(SESSION_FILE, 'utf8').trim();
+  } catch {}
+  return null;
+}
 
 // ============ AUTO-START ON BOOT ============
 app.setLoginItemSettings({
@@ -160,6 +183,11 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  // Tear down ACP connection on quit
+  if (acpConnection) {
+    acpConnection.disconnect();
+    acpConnection = null;
+  }
 });
 
 // ============ HELPERS ============
@@ -485,70 +513,102 @@ ipcMain.handle('install-openclaw', async () => {
 
 ipcMain.handle('get-config', async () => CONFIG);
 
-// ============ IPC: CLAUDE CHAT (streaming) ============
+// ============ IPC: ACP CONNECTION MANAGEMENT ============
 
-ipcMain.handle('claude-chat', async (event, message: string, workDir: string) => {
-  const claudeBin = await findClaudeBinary();
-  return new Promise((resolve) => {
-    if (!claudeBin) {
-      mainWindow?.webContents.send('claude-stream', { type: 'error', content: 'Claude Code not found. Please run Setup first.' });
-      mainWindow?.webContents.send('claude-stream-end', { code: 1 });
-      resolve({ success: false, output: 'Claude Code not found. Run Setup first.' });
-      return;
-    }
-
+ipcMain.handle('claude-connect', async (_, workDir: string) => {
+  try {
     const targetDir = workDir || path.join(getHomeDir(), '.openclaw');
-    // Ensure target directory exists
     if (!fs.existsSync(targetDir)) {
       try { fs.mkdirSync(targetDir, { recursive: true }); } catch {}
     }
 
-    const args = [
-      '-p', message,
-      '--print',
-      '--output-format', 'stream-json',
-      '--permission-mode', 'bypassPermissions',
-      '--allowedTools', 'Read,Edit,Write,Bash,Glob,Grep',
-      '-d', targetDir,
-    ];
+    // Tear down existing connection if any
+    if (acpConnection) {
+      acpConnection.disconnect();
+      acpConnection = null;
+    }
 
-    const proc = spawn(claudeBin, args, {
-      env: {
-        ...process.env,
-        ANTHROPIC_BASE_URL: CONFIG.apiBaseUrl,
-        ANTHROPIC_AUTH_TOKEN: CONFIG.apiKey,
-      },
-      cwd: targetDir,
+    acpConnection = new AcpConnection();
+
+    // Wire up streaming to renderer
+    acpConnection.setUpdateHandler((msg) => {
+      mainWindow?.webContents.send('claude-stream', msg);
     });
 
-    let fullOutput = '';
-
-    proc.stdout.on('data', (chunk) => {
-      const lines = chunk.toString().split('\n').filter(Boolean);
-      for (const line of lines) {
-        try {
-          const parsed = JSON.parse(line);
-          mainWindow?.webContents.send('claude-stream', parsed);
-          if (parsed.type === 'assistant' && parsed.content) {
-            fullOutput += typeof parsed.content === 'string'
-              ? parsed.content
-              : parsed.content.filter((c: any) => c.type === 'text').map((c: any) => c.text).join('');
-          }
-        } catch {
-          fullOutput += line;
-        }
-      }
+    acpConnection.setErrorHandler((err) => {
+      mainWindow?.webContents.send('claude-stream', { type: 'error', content: err });
     });
 
-    proc.stderr.on('data', (d) => {
-      mainWindow?.webContents.send('claude-stream', { type: 'error', content: d.toString() });
-    });
+    await acpConnection.connect(targetDir);
 
-    proc.on('close', (code) => {
-      mainWindow?.webContents.send('claude-stream-end', { code });
-      resolve({ success: code === 0, output: fullOutput });
-    });
-  });
+    // Try to resume previous session, or create new one
+    const savedSession = loadSessionId();
+    const sessionId = await acpConnection.newSession(targetDir, savedSession || undefined);
+    lastSessionId = sessionId;
+    saveSessionId(sessionId);
+
+    return { success: true, sessionId };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+});
+
+ipcMain.handle('claude-disconnect', async () => {
+  if (acpConnection) {
+    acpConnection.disconnect();
+    acpConnection = null;
+  }
+  return { success: true };
+});
+
+ipcMain.handle('claude-cancel', async () => {
+  if (acpConnection && acpConnection.isConnected()) {
+    await acpConnection.cancel();
+    return { success: true };
+  }
+  return { success: false, error: 'No active connection' };
+});
+
+// ============ IPC: CLAUDE CHAT (streaming via ACP) ============
+
+ipcMain.handle('claude-chat', async (_event, message: string, workDir: string) => {
+  try {
+    const targetDir = workDir || path.join(getHomeDir(), '.openclaw');
+    if (!fs.existsSync(targetDir)) {
+      try { fs.mkdirSync(targetDir, { recursive: true }); } catch {}
+    }
+
+    // Auto-connect if not already connected
+    if (!acpConnection || !acpConnection.isConnected()) {
+      acpConnection = new AcpConnection();
+
+      acpConnection.setUpdateHandler((msg) => {
+        mainWindow?.webContents.send('claude-stream', msg);
+      });
+
+      acpConnection.setErrorHandler((err) => {
+        mainWindow?.webContents.send('claude-stream', { type: 'error', content: err });
+      });
+
+      await acpConnection.connect(targetDir);
+
+      // Resume or new session
+      const savedSession = loadSessionId();
+      const sessionId = await acpConnection.newSession(targetDir, savedSession || undefined);
+      lastSessionId = sessionId;
+      saveSessionId(sessionId);
+    }
+
+    // Send the prompt — ACP streams updates via the update handler
+    await acpConnection.prompt(message);
+
+    mainWindow?.webContents.send('claude-stream-end', { code: 0 });
+    return { success: true, sessionId: lastSessionId };
+  } catch (e: any) {
+    mainWindow?.webContents.send('claude-stream', { type: 'error', content: e.message });
+    mainWindow?.webContents.send('claude-stream-end', { code: 1 });
+    return { success: false, output: e.message };
+  }
 });
 
 // ============ IPC: OPENCLAW STATUS ============

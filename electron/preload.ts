@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeAllListeners('install-progress');
   },
   getConfig: () => ipcRenderer.invoke('get-config'),
+  claudeConnect: (workDir: string) => ipcRenderer.invoke('claude-connect', workDir),
+  claudeDisconnect: () => ipcRenderer.invoke('claude-disconnect'),
+  claudeCancel: () => ipcRenderer.invoke('claude-cancel'),
   claudeChat: (message: string, workDir: string) => ipcRenderer.invoke('claude-chat', message, workDir),
   onClaudeStream: (callback: (data: any) => void) => {
     ipcRenderer.on('claude-stream', (_, data) => callback(data));
