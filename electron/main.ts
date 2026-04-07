@@ -586,7 +586,7 @@ ipcMain.handle('claude-cancel', async () => {
 
 // ============ IPC: CLAUDE CHAT (streaming via ACP) ============
 
-ipcMain.handle('claude-chat', async (_event, message: string, workDir: string) => {
+ipcMain.handle('claude-chat', async (_event, message: string, workDir: string, imageBase64?: string) => {
   try {
     // Default to user's home directory — NOT .openclaw (this is just a Claude Code chat)
     const targetDir = workDir || getHomeDir();
@@ -627,7 +627,7 @@ ipcMain.handle('claude-chat', async (_event, message: string, workDir: string) =
     }
 
     // Send the prompt — ACP streams updates via onStreamChunk callback
-    await acpConnection.sendPrompt(message);
+    await acpConnection.sendPrompt(message, imageBase64);
 
     // Signal completion to renderer
     mainWindow?.webContents.send('claude-stream', { type: 'done' });

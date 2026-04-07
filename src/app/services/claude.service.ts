@@ -16,7 +16,7 @@ declare global {
     electronAPI: {
       checkTool: (tool: string) => Promise<{ installed: boolean; version: string | null }>;
       installTool: (tool: string) => Promise<{ success: boolean; output?: string; error?: string }>;
-      claudeChat: (message: string, workDir: string) => Promise<{ success: boolean; output: string }>;
+      claudeChat: (message: string, workDir: string, imageBase64?: string) => Promise<{ success: boolean; output: string }>;
       onClaudeStream: (callback: (data: any) => void) => void;
       onClaudeStreamEnd: (callback: (data: any) => void) => void;
       removeStreamListeners: () => void;
@@ -51,7 +51,7 @@ export class ClaudeService {
     return this.workDir;
   }
 
-  sendMessage(message: string): Observable<StreamEvent> {
+  sendMessage(message: string, imageBase64?: string): Observable<StreamEvent> {
     const subject = new Subject<StreamEvent>();
     this.isStreaming = true;
 
@@ -107,7 +107,7 @@ export class ClaudeService {
       });
     });
 
-    window.electronAPI.claudeChat(message, this.workDir || '').catch((err) => {
+    window.electronAPI.claudeChat(message, this.workDir || '', imageBase64).catch((err) => {
       this.ngZone.run(() => {
         this.isStreaming = false;
         subject.error(err);

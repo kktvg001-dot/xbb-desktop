@@ -26,7 +26,10 @@ interface ChatMessage {
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="chat-container">
+    <div class="chat-container"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)"
+      (drop)="onDrop($event)">
       <div class="chat-messages" #messagesContainer>
 
         <!-- Empty state -->
@@ -102,13 +105,29 @@ interface ChatMessage {
         </div>
       </div>
 
+      <!-- Drag-drop overlay -->
+      <div class="drop-overlay" *ngIf="isDragging"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)"
+        (drop)="onDrop($event)">
+        <div class="drop-overlay-content">Drop image here</div>
+      </div>
+
       <!-- Input bar -->
       <div class="input-bar">
+        <!-- Image preview -->
+        <div class="image-preview-wrapper" *ngIf="pendingImageBase64">
+          <div class="image-preview">
+            <img [src]="'data:image/png;base64,' + pendingImageBase64" alt="Pending image" />
+            <button class="image-remove" (click)="removeImage()">&times;</button>
+          </div>
+        </div>
         <div class="input-area" [class.focused]="inputFocused">
           <textarea
             #inputField
             [(ngModel)]="inputText"
             (keydown)="onKeyDown($event)"
+            (paste)="onPaste($event)"
             (focus)="inputFocused = true"
             (blur)="inputFocused = false"
             (input)="autoResize($event)"
@@ -118,8 +137,8 @@ interface ChatMessage {
           <button
             class="send-button"
             (click)="send()"
-            [class.visible]="inputText.trim().length > 0"
-            [disabled]="!inputText.trim() || claude.isStreaming">
+            [class.visible]="inputText.trim().length > 0 || !!pendingImageBase64"
+            [disabled]="(!inputText.trim() && !pendingImageBase64) || claude.isStreaming">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M8 14V2M8 2L3 7M8 2L13 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -391,6 +410,68 @@ interface ChatMessage {
       40% { transform: scale(1); opacity: 1; }
     }
 
+    /* ── Drag-drop overlay ── */
+    .drop-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(5, 150, 105, 0.08);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .drop-overlay-content {
+      padding: 40px 60px;
+      border: 3px dashed #059669;
+      border-radius: 16px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #059669;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    /* ── Image preview ── */
+    .image-preview-wrapper {
+      max-width: 800px;
+      margin: 0 auto 8px;
+    }
+    .image-preview {
+      position: relative;
+      display: inline-block;
+    }
+    .image-preview img {
+      max-height: 200px;
+      max-width: 100%;
+      border-radius: 10px;
+      border: 1px solid #e0e0e0;
+      object-fit: contain;
+    }
+    .image-remove {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: background 0.15s;
+    }
+    .image-remove:hover {
+      background: rgba(0, 0, 0, 0.85);
+    }
+
     /* ── Input bar ── */
     .input-bar {
       padding: 12px 16px 20px;
@@ -471,9 +552,14 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
   inputText = '';
   inputFocused = false;
   isWaiting = false;
+  pendingImageBase64: string | null = null;
+  isDragging = false;
+  private dragCounter = 0;
   private streamSub: Subscription | null = null;
   private shouldScroll = false;
   private currentAssistant: ChatMessage | null = null;
+
+  private readonly IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
   constructor(public claude: ClaudeService, private cdr: ChangeDetectorRef) {}
 
@@ -501,6 +587,66 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
     el.style.height = Math.min(el.scrollHeight, 200) + 'px';
   }
 
+  onPaste(event: ClipboardEvent) {
+    const files = event.clipboardData?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (this.IMAGE_TYPES.includes(file.type)) {
+        event.preventDefault();
+        this.readImageFile(file);
+      }
+    }
+  }
+
+  onDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!this.isDragging) {
+      this.dragCounter++;
+      this.isDragging = true;
+    }
+  }
+
+  onDragLeave(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragCounter--;
+    if (this.dragCounter <= 0) {
+      this.dragCounter = 0;
+      this.isDragging = false;
+    }
+  }
+
+  onDrop(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragging = false;
+    this.dragCounter = 0;
+
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (this.IMAGE_TYPES.includes(file.type)) {
+        this.readImageFile(file);
+      }
+    }
+  }
+
+  removeImage() {
+    this.pendingImageBase64 = null;
+  }
+
+  private readImageFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      // Strip the "data:image/...;base64," prefix
+      this.pendingImageBase64 = dataUrl.split(',')[1] || null;
+      this.cdr.detectChanges();
+    };
+    reader.readAsDataURL(file);
+  }
+
   sendExample(text: string) {
     this.inputText = text;
     this.send();
@@ -508,10 +654,13 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
 
   send() {
     const text = this.inputText.trim();
-    if (!text || this.claude.isStreaming) return;
+    const image = this.pendingImageBase64;
+    if ((!text && !image) || this.claude.isStreaming) return;
 
-    this.messages.push({ role: 'user', content: text, tools: [] });
+    const displayContent = image ? (text || '(image)') : text;
+    this.messages.push({ role: 'user', content: displayContent, tools: [] });
     this.inputText = '';
+    this.pendingImageBase64 = null;
     this.shouldScroll = true;
     this.isWaiting = true;
 
@@ -524,7 +673,7 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
     this.messages.push(assistantMsg);
     this.currentAssistant = assistantMsg;
 
-    this.streamSub = this.claude.sendMessage(text).subscribe({
+    this.streamSub = this.claude.sendMessage(text, image || undefined).subscribe({
       next: (event: StreamEvent) => {
         this.isWaiting = false;
 

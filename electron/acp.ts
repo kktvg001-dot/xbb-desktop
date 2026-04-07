@@ -301,16 +301,33 @@ export class AcpConnection {
     return this.sessionId!;
   }
 
-  async sendPrompt(message: string): Promise<unknown> {
+  async sendPrompt(message: string, imageBase64?: string): Promise<unknown> {
     if (!this.sessionId) {
       throw new Error('No active session. Call newSession() first.');
     }
+
+    const promptContent: Array<Record<string, unknown>> = [];
+
+    // Add image block if present
+    if (imageBase64) {
+      promptContent.push({
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: 'image/png',
+          data: imageBase64,
+        },
+      });
+    }
+
+    // Add text block
+    promptContent.push({ type: 'text', text: message || 'What is in this image?' });
 
     this.startPromptKeepalive();
     try {
       return await this.sendRequest('session/prompt', {
         sessionId: this.sessionId,
-        prompt: [{ type: 'text', text: message }],
+        prompt: promptContent,
       });
     } finally {
       this.stopPromptKeepalive();
