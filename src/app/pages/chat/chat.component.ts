@@ -845,6 +845,102 @@ interface ChatMessage {
       color: #444;
     }
 
+    /* ── File change tool card ── */
+    .tool-card.tool-file-change.tool-done {
+      border-color: #86efac;
+    }
+
+    /* ── Diff viewer ── */
+    .diff-container {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .diff-file-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: #f1f5f9;
+      border-bottom: 1px solid #e2e8f0;
+      font-weight: 600;
+      color: #334155;
+    }
+    .diff-file-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #fbbf24;
+      color: #78350f;
+      flex-shrink: 0;
+    }
+    .diff-file-icon.diff-file-created {
+      background: #34d399;
+      color: #064e3b;
+    }
+    .diff-file-path {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      direction: rtl;
+      text-align: left;
+    }
+    .diff-body {
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 4px 0;
+    }
+    .diff-body.diff-no-content {
+      padding: 12px;
+      color: #6b7280;
+      font-style: italic;
+      font-family: inherit;
+    }
+    .diff-section {
+      margin: 0;
+    }
+    .diff-section + .diff-section {
+      border-top: 1px dashed #e5e7eb;
+      margin-top: 2px;
+      padding-top: 2px;
+    }
+    .diff-line {
+      display: flex;
+      padding: 0 12px;
+      min-height: 20px;
+    }
+    .diff-line.diff-removed {
+      background: #fef2f2;
+      color: #991b1b;
+    }
+    .diff-line.diff-added {
+      background: #f0fdf4;
+      color: #166534;
+    }
+    .diff-prefix {
+      width: 16px;
+      flex-shrink: 0;
+      font-weight: 700;
+      user-select: none;
+    }
+    .diff-line.diff-removed .diff-prefix {
+      color: #dc2626;
+    }
+    .diff-line.diff-added .diff-prefix {
+      color: #16a34a;
+    }
+    .diff-text {
+      white-space: pre-wrap;
+      word-break: break-all;
+      flex: 1;
+      min-width: 0;
+    }
+
     /* ── Error text ── */
     .error-text {
       color: #dc2626;
@@ -1446,6 +1542,14 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
               output: '',
               expanded: false,
             };
+            // Initialize diff data for file-changing tools
+            if (this.isFileChangeTool(toolBlock)) {
+              const toolName = (toolBlock.name || '').toLowerCase();
+              toolBlock.diffData = {
+                filePath: toolBlock.input || 'unknown file',
+                type: toolName.includes('edit') ? 'edit' : 'write',
+              };
+            }
             assistantMsg.tools.push(toolBlock);
             // Update activity indicator based on tool name
             const toolName = toolBlock.name;
@@ -1462,6 +1566,10 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
             if (existing) {
               if (event.status) existing.status = event.status;
               if (event.content) existing.output += event.content;
+              // Update diff data when tool completes
+              if (this.isFileChangeTool(existing) && (event.status === 'completed' || event.status === 'done')) {
+                this.parseDiffFromOutput(existing);
+              }
             }
             break;
           }
@@ -1697,6 +1805,56 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       count > 1 ? `${name} \u00D7${count}` : name
     );
     return `${total} operations (${parts.join(', ')})`;
+  }
+
+  /** Check if a tool is a file-changing tool (Edit/Write) */
+  isFileChangeTool(tool: ToolBlock): boolean {
+    const name = (tool.name || '').toLowerCase();
+    return name.includes('edit') || name.includes('write');
+  }
+
+  /** Split a string into lines for diff display */
+  splitLines(text: string): string[] {
+    if (!text) return [];
+    return text.split('\n');
+  }
+
+  /** Parse tool input to extract diff data for Edit/Write tools */
+  private parseDiffFromOutput(tool: ToolBlock): void {
+    const name = (tool.name || '').toLowerCase();
+    if (!name.includes('edit') && !name.includes('write')) return;
+
+    const filePath = tool.input || 'unknown file';
+
+    if (name.includes('edit')) {
+      // Try to parse old_string/new_string from the output text
+      // The output typically contains the result message from the Edit tool
+      const diffData: DiffData = { filePath, type: 'edit' };
+
+      // Try parsing output for edit details
+      if (tool.output) {
+        // Some ACP outputs include the changes in structured text
+        const oldMatch = tool.output.match(/old_string[:\s]*["']?([\s\S]*?)["']?\s*(?:new_string|$)/);
+        const newMatch = tool.output.match(/new_string[:\s]*["']?([\s\S]*?)["']?\s*$/);
+        if (oldMatch) diffData.oldString = oldMatch[1].trim();
+        if (newMatch) diffData.newString = newMatch[1].trim();
+      }
+
+      tool.diffData = diffData;
+    } else if (name.includes('write')) {
+      const diffData: DiffData = { filePath, type: 'write' };
+
+      // For Write tools, the output might contain file content preview
+      if (tool.output && tool.output.length > 0) {
+        // Only show content if it looks like actual file content (not just a success message)
+        const isSuccessMsg = /^(The file|File|wrote|Written|Success)/i.test(tool.output.trim());
+        if (!isSuccessMsg && tool.output.length > 20) {
+          diffData.content = tool.output;
+        }
+      }
+
+      tool.diffData = diffData;
+    }
   }
 
   formatMarkdown(content: string): string {
