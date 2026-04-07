@@ -600,10 +600,12 @@ ipcMain.handle('claude-chat', async (_event, message: string, workDir: string) =
 
       // Wire up streaming — clean typed chunks to renderer
       acpConnection.onStreamChunk = (chunk: StreamChunk) => {
+        console.log('[ACP CHUNK]', chunk.type, chunk.content?.substring(0, 50) || '');
         mainWindow?.webContents.send('claude-stream', chunk);
       };
 
       acpConnection.onError = (err: string) => {
+        console.error('[ACP ERROR]', err);
         mainWindow?.webContents.send('claude-stream', { type: 'error', content: err });
       };
 
@@ -615,20 +617,25 @@ ipcMain.handle('claude-chat', async (_event, message: string, workDir: string) =
       };
 
       // Connect with API keys in spawn environment
+      console.log('[ACP] Connecting to', targetDir);
       await acpConnection.connect(targetDir, {
         ANTHROPIC_BASE_URL: CONFIG.apiBaseUrl,
         ANTHROPIC_AUTH_TOKEN: CONFIG.apiKey,
       });
+      console.log('[ACP] Connected!');
 
-      // Resume or new session
-      const savedSession = loadSessionId();
-      const sessionId = await acpConnection.newSession(targetDir, savedSession || undefined);
+      // Create fresh session (don't try resume — it causes issues)
+      console.log('[ACP] Creating new session...');
+      const sessionId = await acpConnection.newSession(targetDir);
       lastSessionId = sessionId;
       saveSessionId(sessionId);
+      console.log('[ACP] Session created:', sessionId);
     }
 
     // Send the prompt — ACP streams updates via onStreamChunk callback
+    console.log('[ACP] Sending prompt:', message);
     await acpConnection.sendPrompt(message);
+    console.log('[ACP] Prompt complete');
 
     // Signal completion to renderer
     mainWindow?.webContents.send('claude-stream', { type: 'done' });
