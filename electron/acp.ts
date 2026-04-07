@@ -199,7 +199,7 @@ export class AcpConnection {
         const response = await this.sendRequest('session/new', params);
         if (response.sessionId) {
           this.sessionId = response.sessionId;
-          return this.sessionId;
+          return this.sessionId!;
         }
       } catch {
         // Resume failed — create fresh session below
