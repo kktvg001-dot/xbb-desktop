@@ -50,7 +50,8 @@ interface ChatMessage {
               *ngFor="let c of groupedConversations.today"
               [class.conv-active]="c.id === currentConversationId"
               (click)="loadConversation(c)">
-              <span class="conv-title">{{ c.title }}</span>
+              <span class="conv-title" *ngIf="editingConvId !== c.id" (dblclick)="startRename(c, $event)">{{ c.title }}</span>
+              <input *ngIf="editingConvId === c.id" class="conv-rename-input" [(ngModel)]="editingConvTitle" (blur)="finishRename(c)" (keydown.enter)="finishRename(c)" (keydown.escape)="cancelRename()" />
               <button class="conv-delete" (click)="deleteConversation(c.id, $event)">&times;</button>
             </div>
           </ng-container>
@@ -60,7 +61,8 @@ interface ChatMessage {
               *ngFor="let c of groupedConversations.yesterday"
               [class.conv-active]="c.id === currentConversationId"
               (click)="loadConversation(c)">
-              <span class="conv-title">{{ c.title }}</span>
+              <span class="conv-title" *ngIf="editingConvId !== c.id" (dblclick)="startRename(c, $event)">{{ c.title }}</span>
+              <input *ngIf="editingConvId === c.id" class="conv-rename-input" [(ngModel)]="editingConvTitle" (blur)="finishRename(c)" (keydown.enter)="finishRename(c)" (keydown.escape)="cancelRename()" />
               <button class="conv-delete" (click)="deleteConversation(c.id, $event)">&times;</button>
             </div>
           </ng-container>
@@ -70,7 +72,8 @@ interface ChatMessage {
               *ngFor="let c of groupedConversations.previous"
               [class.conv-active]="c.id === currentConversationId"
               (click)="loadConversation(c)">
-              <span class="conv-title">{{ c.title }}</span>
+              <span class="conv-title" *ngIf="editingConvId !== c.id" (dblclick)="startRename(c, $event)">{{ c.title }}</span>
+              <input *ngIf="editingConvId === c.id" class="conv-rename-input" [(ngModel)]="editingConvTitle" (blur)="finishRename(c)" (keydown.enter)="finishRename(c)" (keydown.escape)="cancelRename()" />
               <button class="conv-delete" (click)="deleteConversation(c.id, $event)">&times;</button>
             </div>
           </ng-container>
@@ -403,6 +406,21 @@ interface ChatMessage {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      cursor: default;
+    }
+    .conv-rename-input {
+      flex: 1;
+      min-width: 0;
+      background: var(--bg-input, #2f2f2f);
+      border: 1px solid var(--border, #383838);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 13px;
+      padding: 2px 6px;
+      outline: none;
+    }
+    .conv-rename-input:focus {
+      border-color: var(--accent, #ececec);
     }
 
     .conv-delete {
@@ -1385,6 +1403,35 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   currentActivity = 'Thinking...';
   pendingQueue: string[] = [];
   followUpSuggestions: string[] = [];
+  editingConvId: string | null = null;
+  editingConvTitle = '';
+
+  startRename(conv: any, event: Event) {
+    event.stopPropagation();
+    this.editingConvId = conv.id;
+    this.editingConvTitle = conv.title;
+    setTimeout(() => {
+      const input = document.querySelector('.conv-rename-input') as HTMLInputElement;
+      if (input) { input.focus(); input.select(); }
+    }, 50);
+  }
+
+  async finishRename(conv: any) {
+    if (this.editingConvTitle.trim() && this.editingConvTitle !== conv.title) {
+      conv.title = this.editingConvTitle.trim();
+      if ((window as any).electronAPI?.saveConversation) {
+        await (window as any).electronAPI.saveConversation(conv);
+      }
+      await this.loadConversations();
+    }
+    this.editingConvId = null;
+    this.editingConvTitle = '';
+  }
+
+  cancelRename() {
+    this.editingConvId = null;
+    this.editingConvTitle = '';
+  }
 
   // Speech input state
   isRecording = false;
