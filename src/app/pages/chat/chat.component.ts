@@ -290,18 +290,6 @@ interface ChatMessage {
             rows="1"></textarea>
           <!-- queued messages now shown in conversation list -->
           <button
-            class="mic-btn"
-            [class.recording]="isRecording"
-            (click)="toggleSpeechInput()"
-            title="Voice input">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M8 1a2.5 2.5 0 0 0-2.5 2.5v4a2.5 2.5 0 0 0 5 0v-4A2.5 2.5 0 0 0 8 1z" fill="currentColor"/>
-              <path d="M4 7v.5a4 4 0 0 0 8 0V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-              <path d="M8 12.5V15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-              <path d="M5.5 15h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </button>
-          <button
             *ngIf="claude.isStreaming"
             class="stop-btn"
             (click)="stopGeneration()">
