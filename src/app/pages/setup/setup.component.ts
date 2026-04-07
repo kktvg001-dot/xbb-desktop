@@ -452,7 +452,7 @@ export class SetupComponent implements OnInit, OnDestroy {
     }
   }
 
-  private goToStep(step: WizardStep) {
+  goToStep(step: WizardStep) {
     this.animateIn = false;
     setTimeout(() => {
       this.currentStep = step;
