@@ -54,6 +54,9 @@ type WizardStep = 1 | 2 | 3 | 4;
           </div>
 
           <div class="step-actions">
+            <button class="btn btn-primary btn-full" *ngIf="stepStatus === 'done'" (click)="goToStep(3)">
+              Continue →
+            </button>
             <button class="btn btn-primary btn-full" *ngIf="stepStatus === 'error'" (click)="runStep2()"
               [attr.title]="browserMode ? 'Requires desktop app' : null">
               Retry
@@ -84,6 +87,9 @@ type WizardStep = 1 | 2 | 3 | 4;
           </div>
 
           <div class="step-actions">
+            <button class="btn btn-primary btn-full" *ngIf="stepStatus === 'done'" (click)="goToStep(4)">
+              Continue →
+            </button>
             <button class="btn btn-primary btn-full" *ngIf="stepStatus === 'error'" (click)="runStep3()"
               [attr.title]="browserMode ? 'Requires desktop app' : null">
               Retry
