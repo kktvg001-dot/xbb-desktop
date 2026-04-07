@@ -90,22 +90,7 @@ interface ChatMessage {
         (dragleave)="onDragLeave($event)"
         (drop)="onDrop($event)">
 
-      <!-- Model selector header -->
-      <div class="model-header">
-        <select [(ngModel)]="selectedModel" (ngModelChange)="onModelChange($event)" class="model-select">
-          <option value="claude-sonnet-4-6">Sonnet 4.6</option>
-          <option value="claude-opus-4-6">Opus 4.6</option>
-          <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
-          <option value="custom">Custom...</option>
-        </select>
-        <input
-          *ngIf="selectedModel === 'custom'"
-          [(ngModel)]="customModelId"
-          (blur)="onCustomModelBlur()"
-          (keydown.enter)="onCustomModelBlur()"
-          class="model-custom-input"
-          placeholder="model-id" />
-      </div>
+      <!-- Chat header removed — model selector moved to Settings -->
       <div class="chat-messages" #messagesContainer>
 
         <!-- Empty state -->
