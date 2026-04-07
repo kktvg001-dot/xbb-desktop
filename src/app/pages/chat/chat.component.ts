@@ -160,7 +160,10 @@ interface ChatMessage {
                   <span class="tool-expand">{{ msg.showTools ? '&#9650;' : '&#9660;' }}</span>
                 </div>
                 <div class="tool-details" *ngIf="msg.showTools">
-                  <div class="tool-card" *ngFor="let tool of msg.tools" [class.tool-done]="tool.status === 'completed' || tool.status === 'done'" [class.tool-running]="tool.status === 'running' || tool.status === 'in_progress'">
+                  <div class="tool-card" *ngFor="let tool of msg.tools"
+                    [class.tool-done]="tool.status === 'completed' || tool.status === 'done'"
+                    [class.tool-running]="tool.status === 'running' || tool.status === 'in_progress'"
+                    [class.tool-file-change]="isFileChangeTool(tool)">
                     <div class="tool-header" (click)="tool.expanded = !tool.expanded">
                       <span class="tool-icon">
                         <svg *ngIf="tool.status === 'running' || tool.status === 'in_progress'" class="spinner" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="20 12" /></svg>
@@ -171,12 +174,51 @@ interface ChatMessage {
                       <span class="tool-expand">{{ tool.expanded ? '&#9650;' : '&#9660;' }}</span>
                     </div>
                     <div class="tool-body" *ngIf="tool.expanded">
-                      <div class="tool-input-full" *ngIf="tool.input">
-                        <pre>{{ tool.input }}</pre>
-                      </div>
-                      <div class="tool-output" *ngIf="tool.output">
-                        <pre>{{ truncate(tool.output, 2000) }}</pre>
-                      </div>
+                      <!-- Diff view for Edit/Write tools -->
+                      <ng-container *ngIf="tool.diffData; else defaultToolBody">
+                        <div class="diff-container">
+                          <div class="diff-file-header">
+                            <span class="diff-file-icon" *ngIf="tool.diffData.type === 'edit'">M</span>
+                            <span class="diff-file-icon diff-file-created" *ngIf="tool.diffData.type === 'write'">+</span>
+                            <span class="diff-file-path">{{ tool.diffData.filePath }}</span>
+                          </div>
+                          <!-- Edit: show old_string -> new_string diff -->
+                          <div class="diff-body" *ngIf="tool.diffData.type === 'edit' && (tool.diffData.oldString || tool.diffData.newString)">
+                            <div class="diff-section" *ngIf="tool.diffData.oldString">
+                              <div class="diff-line diff-removed" *ngFor="let line of splitLines(tool.diffData.oldString)">
+                                <span class="diff-prefix">-</span><span class="diff-text">{{ line }}</span>
+                              </div>
+                            </div>
+                            <div class="diff-section" *ngIf="tool.diffData.newString">
+                              <div class="diff-line diff-added" *ngFor="let line of splitLines(tool.diffData.newString)">
+                                <span class="diff-prefix">+</span><span class="diff-text">{{ line }}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <!-- Write: show content preview -->
+                          <div class="diff-body" *ngIf="tool.diffData.type === 'write' && tool.diffData.content">
+                            <div class="diff-line diff-added" *ngFor="let line of splitLines(truncate(tool.diffData.content, 2000))">
+                              <span class="diff-prefix">+</span><span class="diff-text">{{ line }}</span>
+                            </div>
+                          </div>
+                          <!-- Fallback when no diff content available -->
+                          <div class="diff-body diff-no-content" *ngIf="!tool.diffData.oldString && !tool.diffData.newString && !tool.diffData.content">
+                            <span>File {{ tool.diffData.type === 'edit' ? 'modified' : 'written' }} successfully</span>
+                          </div>
+                        </div>
+                        <div class="tool-output" *ngIf="tool.output && !tool.diffData.oldString && !tool.diffData.newString && !tool.diffData.content">
+                          <pre>{{ truncate(tool.output, 2000) }}</pre>
+                        </div>
+                      </ng-container>
+                      <!-- Default view for non-file tools -->
+                      <ng-template #defaultToolBody>
+                        <div class="tool-input-full" *ngIf="tool.input">
+                          <pre>{{ tool.input }}</pre>
+                        </div>
+                        <div class="tool-output" *ngIf="tool.output">
+                          <pre>{{ truncate(tool.output, 2000) }}</pre>
+                        </div>
+                      </ng-template>
                     </div>
                   </div>
                 </div>

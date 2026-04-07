@@ -140,11 +140,11 @@ type WizardStep = 1 | 2 | 3 | 4;
       min-height: 100vh;
       width: 100%;
       padding: 24px;
-      background: linear-gradient(160deg, #f0f4f8 0%, #e2e8f0 50%, #dfe6ed 100%);
+      background: var(--setup-bg);
     }
 
     .setup-card {
-      background: #fff;
+      background: var(--setup-card-bg);
       border-radius: 20px;
       padding: 44px 44px 40px;
       max-width: 500px;
@@ -173,20 +173,20 @@ type WizardStep = 1 | 2 | 3 | 4;
     .progress-bar-track {
       flex: 1;
       height: 6px;
-      background: #e8ecf0;
+      background: var(--setup-progress-track);
       border-radius: 3px;
       overflow: hidden;
     }
     .progress-bar-fill {
       height: 100%;
-      background: linear-gradient(90deg, #00a884, #00c49a);
+      background: linear-gradient(90deg, var(--accent), var(--accent-hover));
       border-radius: 3px;
       transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
     }
     .progress-text {
       font-size: 12px;
       font-weight: 600;
-      color: #94a3b8;
+      color: var(--setup-progress-text);
       text-transform: uppercase;
       letter-spacing: 0.6px;
       white-space: nowrap;
@@ -208,7 +208,7 @@ type WizardStep = 1 | 2 | 3 | 4;
       font-size: 28px;
       font-weight: 700;
       margin: 0 0 10px;
-      color: #1e293b;
+      color: var(--setup-title-color);
       letter-spacing: -0.3px;
     }
     .step-title.inline {
@@ -216,7 +216,7 @@ type WizardStep = 1 | 2 | 3 | 4;
       font-size: 22px;
     }
     .step-desc {
-      color: #64748b;
+      color: var(--setup-desc-color);
       margin: 0 0 24px;
       font-size: 16px;
       line-height: 1.5;
@@ -238,7 +238,7 @@ type WizardStep = 1 | 2 | 3 | 4;
     /* Status text colors */
     .status-text { font-size: 15px; }
     .status-ok { color: #16a34a; font-weight: 600; }
-    .status-err { color: #dc2626; font-weight: 600; }
+    .status-err { color: var(--error-text-light); font-weight: 600; }
 
     /* Preview badge for browser mode */
     .preview-badge {
@@ -257,7 +257,7 @@ type WizardStep = 1 | 2 | 3 | 4;
     /* ========== Install Progress Bar ========== */
     .install-progress-bar {
       height: 10px;
-      background: #e8ecf0;
+      background: var(--setup-progress-track);
       border-radius: 5px;
       overflow: hidden;
       margin: 0 0 16px;
@@ -281,7 +281,7 @@ type WizardStep = 1 | 2 | 3 | 4;
 
     /* ========== Log Box ========== */
     .log-box {
-      background: #1a1a2e;
+      background: var(--bg-code);
       border-radius: 10px;
       padding: 14px 16px;
       margin: 0 0 16px;
@@ -312,14 +312,14 @@ type WizardStep = 1 | 2 | 3 | 4;
       justify-content: space-between;
       align-items: center;
       padding: 14px 18px;
-      background: #f8fafc;
+      background: var(--setup-config-bg);
       border-radius: 10px;
-      border: 1px solid #f1f5f9;
+      border: 1px solid var(--setup-config-border);
     }
     .config-label {
       font-weight: 600;
       font-size: 14px;
-      color: #1e293b;
+      color: var(--setup-config-label);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -331,7 +331,7 @@ type WizardStep = 1 | 2 | 3 | 4;
     }
     .config-value {
       font-size: 13px;
-      color: #64748b;
+      color: var(--setup-config-value);
       font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
     }
 
@@ -365,7 +365,7 @@ type WizardStep = 1 | 2 | 3 | 4;
       transform: translateY(0);
     }
     .btn-primary {
-      background: #00a884;
+      background: var(--accent);
       color: #fff;
     }
     .btn-full {
@@ -379,11 +379,11 @@ type WizardStep = 1 | 2 | 3 | 4;
 
     /* ========== Error ========== */
     .error-text {
-      color: #dc2626;
+      color: var(--error-text-light);
       font-size: 13px;
       margin-top: 16px;
       text-align: center;
-      background: #fef2f2;
+      background: var(--error-bg-light);
       padding: 10px 16px;
       border-radius: 8px;
     }

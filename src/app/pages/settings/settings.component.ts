@@ -95,13 +95,13 @@ interface Settings {
     .settings-page h1 {
       font-size: 24px;
       margin: 0 0 24px;
-      color: #1a1a2e;
+      color: var(--text-heading);
     }
     .settings-card {
-      background: #fff;
+      background: var(--card-bg);
       border-radius: 12px;
       padding: 28px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      box-shadow: 0 1px 4px var(--card-shadow);
     }
     .form-group {
       margin-bottom: 20px;
@@ -110,23 +110,25 @@ interface Settings {
       display: block;
       font-size: 13px;
       font-weight: 600;
-      color: #555;
+      color: var(--text-secondary);
       margin-bottom: 6px;
     }
     .form-group input,
     .form-group select {
       width: 100%;
       padding: 10px 12px;
-      border: 1px solid #ddd;
+      border: 1px solid var(--input-border);
       border-radius: 8px;
       font-size: 14px;
       font-family: inherit;
       outline: none;
       box-sizing: border-box;
+      background: var(--input-bg);
+      color: var(--text-primary);
     }
     .form-group input:focus,
     .form-group select:focus {
-      border-color: #00a884;
+      border-color: var(--accent);
     }
     .masked-input {
       display: flex;
@@ -136,23 +138,23 @@ interface Settings {
       flex: 1;
     }
     .toggle-btn {
-      background: #e0e0e0;
+      background: var(--btn-secondary-bg);
       border: none;
       border-radius: 8px;
       padding: 0 14px;
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
-      color: #555;
+      color: var(--text-secondary);
       white-space: nowrap;
     }
     .toggle-btn:hover {
-      background: #d0d0d0;
+      opacity: 0.85;
     }
     .help-text {
       display: block;
       font-size: 12px;
-      color: #999;
+      color: var(--text-faint);
       margin-top: 4px;
     }
     .form-actions {
@@ -173,15 +175,15 @@ interface Settings {
       cursor: not-allowed;
     }
     .btn-primary {
-      background: #00a884;
+      background: var(--accent);
       color: #fff;
     }
     .btn-primary:hover {
-      background: #009674;
+      background: var(--accent-hover);
     }
     .btn-secondary {
-      background: #e0e0e0;
-      color: #333;
+      background: var(--btn-secondary-bg);
+      color: var(--btn-secondary-text);
     }
     .status-message {
       margin-top: 16px;
@@ -190,12 +192,12 @@ interface Settings {
       border-radius: 8px;
     }
     .status-message.success {
-      background: #e8f5e9;
-      color: #2e7d32;
+      background: var(--success-bg);
+      color: var(--success-text);
     }
     .status-message.error {
-      background: #fce4ec;
-      color: #c62828;
+      background: var(--error-bg);
+      color: var(--error-text);
     }
   `],
 })
