@@ -108,6 +108,7 @@ export async function loginViaMyapiOIDC(parentWindow: BrowserWindow): Promise<Au
 
   return new Promise((resolve, reject) => {
     let resolved = false;
+    let pollTimer: NodeJS.Timeout | null = null;
 
     const authWindow = new BrowserWindow({
       width: 500,
@@ -118,20 +119,16 @@ export async function loginViaMyapiOIDC(parentWindow: BrowserWindow): Promise<Au
       webPreferences: { nodeIntegration: false, contextIsolation: true },
     });
 
-    // After Google OIDC login, myapi redirects to dashboard.
-    // Session cookie is set — we use it to get user info + provision API key.
-    const handleNavigation = async (url: string) => {
+    const completeLogin = async () => {
       if (resolved) return;
-      // Wait for redirect back to myapi after login
-      // Skip login/oauth pages — those are still in the auth flow
-      if (!url.startsWith(MYAPI_URL)) return;
-      if (url.includes('/oauth/') || url.includes('/login')) return;
-
       resolved = true;
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+
       try {
-        // Get session cookies
+        // Get session cookies from the auth window
         const cookies = await authWindow.webContents.session.cookies.get({ url: MYAPI_URL });
         const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+        logger.log('AUTH', 'Got cookies, checking session...');
 
         // Get user info from myapi using the session
         const userResp = await httpRequest(`${MYAPI_URL}/api/user/self`, {
@@ -146,6 +143,7 @@ export async function loginViaMyapiOIDC(parentWindow: BrowserWindow): Promise<Au
         const user = userData.data;
         const email = user.email || `user${user.id}@myapi.local`;
         const displayName = user.display_name || user.username;
+        logger.log('AUTH', 'Session verified:', email);
 
         // Call provision endpoint — server creates API key securely
         const provResp = await httpRequest(PROVISION_URL, {
@@ -178,25 +176,50 @@ export async function loginViaMyapiOIDC(parentWindow: BrowserWindow): Promise<Au
         logger.remote('user-login', 'info', `User logged in: ${email}`);
         resolve(auth);
       } catch (e: any) {
-        logger.error('AUTH', 'Login failed:', e.message);
-        authWindow.close();
-        reject(e);
+        logger.error('AUTH', 'Login completion failed:', e.message);
+        resolved = false; // allow retry
       }
+    };
+
+    // Method 1: detect navigation events
+    const handleNavigation = async (url: string) => {
+      if (resolved) return;
+      logger.log('AUTH', 'Navigation:', url);
+      if (!url.startsWith(MYAPI_URL)) return;
+      // Skip pages that are still in the auth flow
+      if (url.includes('/oauth/') || url.includes('/login')) return;
+      // Landed on dashboard/home — login succeeded
+      await completeLogin();
     };
 
     authWindow.webContents.on('will-redirect', (_e, url) => handleNavigation(url));
     authWindow.webContents.on('did-navigate', (_e, url) => handleNavigation(url));
+    authWindow.webContents.on('did-navigate-in-page', (_e, url) => handleNavigation(url));
+
+    // Method 2: poll for session cookie every 2 seconds
+    // This catches cases where SPA routing doesn't trigger navigation events
+    pollTimer = setInterval(async () => {
+      if (resolved) return;
+      try {
+        const cookies = await authWindow.webContents.session.cookies.get({ url: MYAPI_URL });
+        const sessionCookie = cookies.find(c => c.name === 'session');
+        if (sessionCookie) {
+          logger.log('AUTH', 'Session cookie detected via polling');
+          await completeLogin();
+        }
+      } catch {}
+    }, 2000);
 
     authWindow.on('closed', () => {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       if (!resolved) { resolved = true; reject(new Error('Login cancelled')); }
     });
 
-    // Open myapi login page — user clicks "Sign in with Google" from there
-    // (Loading /oauth/oidc directly can fail with "Authorization code not allowed"
-    //  because the redirect chain differs in Electron vs a real browser)
+    // Open myapi login page
     authWindow.loadURL(`${MYAPI_URL}/login`);
 
     setTimeout(() => {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       if (!resolved) { resolved = true; authWindow?.close(); reject(new Error('Login timed out')); }
     }, 120000);
   });
