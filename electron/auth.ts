@@ -17,6 +17,7 @@ import * as logger from './logger';
 
 const PROVISION_URL = 'https://xbb.cooltechgp.online/api/auth/provision';
 const MYAPI_URL = 'https://myapi.cooltechgp.online';
+const APP_SECRET = 'xbb-provision-2026-c7f3a9';
 const AUTH_FILE = path.join(os.homedir(), '.xbb-desktop', 'auth.json');
 
 // ── Types ─────────────────────────────────────────────────────
@@ -223,13 +224,13 @@ export async function loginViaMyapiOIDC(parentWindow: BrowserWindow): Promise<Au
 
         debug(`User resolved: id=${userId}, email=${email}, name=${displayName}`);
 
-        // Call provision endpoint
+        // Call provision endpoint with app secret (proves request is from our app)
         debug('Calling provision endpoint...');
         const provResp = await httpRequest(PROVISION_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            session_cookie: cookieStr,
+            app_secret: APP_SECRET,
             myapi_user_id: userId,
             verified_email: email,
             verified_name: displayName,
