@@ -10,9 +10,11 @@ import * as logger from './logger';
 // ============ GLOBAL ERROR HANDLERS ============
 process.on('uncaughtException', (err) => {
   logger.error('MAIN', 'Uncaught Exception:', err);
+  logger.remote('uncaught-exception', 'error', `Uncaught: ${(err as Error)?.message || err}`);
 });
 process.on('unhandledRejection', (err) => {
   logger.error('MAIN', 'Unhandled Rejection:', err);
+  logger.remote('unhandled-rejection', 'error', `Unhandled: ${(err as Error)?.message || err}`);
 });
 
 // Customer config — edit these values per deployment
@@ -70,8 +72,9 @@ Identity:
 // Set webhookUrl to receive all WARN/ERROR logs via POST.
 logger.setRemoteConfig({
   webhookUrl: 'https://xbb.cooltechgp.online/api/xbb-logs',
-  telegramBotToken: '',   // optional: instant phone alerts
+  telegramBotToken: '',
   telegramChatId: '',
+  version: app.getVersion?.() || '0.0.0',
 });
 
 let mainWindow: BrowserWindow | null = null;
@@ -211,6 +214,7 @@ function createTray() {
 app.whenReady().then(() => {
   logger.log('MAIN', `App started, version: ${app.getVersion()}, platform: ${process.platform}, arch: ${process.arch}`);
   logger.log('MAIN', `Electron: ${process.versions.electron}, Node: ${process.versions.node}`);
+  logger.remote('app-start', 'info', `App started v${app.getVersion()} on ${process.platform}/${process.arch}`);
   createWindow();
   createTray();
 
@@ -451,6 +455,7 @@ ipcMain.handle('install-nodejs', async () => {
     return { success: true, output: 'Installed' };
   } catch (e: any) {
     send('❌ Failed to install Node.js: ' + e.message);
+    logger.remote('install-nodejs-fail', 'error', `Node.js install failed: ${e.message}`);
     return { success: false, output: e.message };
   }
 });
@@ -505,6 +510,7 @@ ipcMain.handle('install-claude', async () => {
     return { success: true, output: 'Installed and configured' };
   } catch (e: any) {
     send('❌ Failed: ' + e.message);
+    logger.remote('install-claude-fail', 'error', `Claude install failed: ${e.message}`);
     return { success: false, output: e.message };
   }
 });
@@ -560,6 +566,7 @@ ipcMain.handle('install-openclaw', async () => {
     return { success: true, output: 'Installed' };
   } catch (e: any) {
     send('❌ Failed: ' + e.message);
+    logger.remote('install-openclaw-fail', 'error', `OpenClaw install failed: ${e.message}`);
     return { success: false, output: e.message };
   }
 });
@@ -711,6 +718,7 @@ ipcMain.handle('claude-chat', async (_event, message: string, workDir: string, i
       const msg = promptErr.message || '';
       if (msg.includes('No active session') || msg.includes('exited unexpectedly') || msg.includes('Resource not found')) {
         logger.warn('CHAT', 'Prompt failed, auto-reconnecting:', msg);
+        logger.remote('acp-reconnect', 'warn', `Auto-reconnect triggered: ${msg}`);
         // Force full reconnect
         acpConnection = null;
         await ensureAcpReady(targetDir);
@@ -730,6 +738,7 @@ ipcMain.handle('claude-chat', async (_event, message: string, workDir: string, i
     return { success: true, sessionId: lastSessionId };
   } catch (e: any) {
     logger.error('CHAT', 'Prompt failed:', e.message);
+    logger.remote('chat-error', 'error', `Chat failed: ${e.message}`);
     mainWindow?.webContents.send('claude-stream', { type: 'error', content: e.message });
     mainWindow?.webContents.send('claude-stream-end', { code: 1 });
     return { success: false, output: e.message };
@@ -889,6 +898,7 @@ ipcMain.handle('claude-new-session', async (_, workDir: string, resumeSessionId?
     return { success: true, sessionId: lastSessionId };
   } catch (e: any) {
     logger.error('SESSION', 'Failed to create session:', e.message);
+    logger.remote('session-fail', 'error', `New session failed: ${e.message}`);
     return { success: false, error: e.message };
   }
 });
