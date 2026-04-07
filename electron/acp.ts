@@ -34,16 +34,37 @@ export class AcpConnection {
 
     const args = ['--yes', '--prefer-offline', CLAUDE_ACP_PACKAGE];
 
-    // Clean environment (remove Electron vars that confuse Node)
+    // Clean environment — remove Electron vars AND OpenClaw's npm vars that cause conflicts
     const cleanEnv: Record<string, string | undefined> = { ...process.env };
     delete cleanEnv.NODE_OPTIONS;
-    // Remove npm lifecycle vars
+    delete cleanEnv.NODE_PATH;
+    // Remove ALL npm/npx lifecycle vars and paths
     Object.keys(cleanEnv).forEach(k => {
-      if (k.startsWith('npm_')) delete cleanEnv[k];
+      if (k.startsWith('npm_') || k.startsWith('NPM_')) delete cleanEnv[k];
     });
+    // Remove CLAUDECODE env var (prevents nested session detection)
+    delete cleanEnv.CLAUDECODE;
 
     const isWindows = process.platform === 'win32';
-    const cmd = isWindows ? `chcp 65001 >nul && "${npxCmd}"` : npxCmd;
+
+    // On Windows, find the SYSTEM npx (not OpenClaw's bundled one)
+    let npxPath = npxCmd;
+    if (isWindows) {
+      const fs = require('fs');
+      // Check standard Node.js install locations
+      const systemPaths = [
+        'C:\\Program Files\\nodejs\\npx.cmd',
+        path.join(os.homedir(), 'AppData', 'Roaming', 'npm', 'npx.cmd'),
+      ];
+      for (const p of systemPaths) {
+        if (fs.existsSync(p)) {
+          npxPath = p;
+          break;
+        }
+      }
+    }
+
+    const cmd = isWindows ? `chcp 65001 >nul && "${npxPath}"` : npxCmd;
 
     this.child = spawn(cmd, args, {
       cwd: workingDir,
