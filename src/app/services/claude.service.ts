@@ -1,6 +1,16 @@
 import { Injectable, NgZone } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 
+export interface StreamEvent {
+  type: 'text' | 'thought' | 'tool' | 'tool_update' | 'error' | 'done';
+  content?: string;
+  name?: string;
+  title?: string;
+  input?: string;
+  toolCallId?: string;
+  status?: string;
+}
+
 declare global {
   interface Window {
     electronAPI: {
@@ -23,7 +33,13 @@ export class ClaudeService {
 
   constructor(private ngZone: NgZone) {
     const stored = localStorage.getItem('xbb-workspace');
-    this.workDir = stored || '';
+    // Migrate away from .openclaw default
+    if (stored && stored.includes('.openclaw')) {
+      localStorage.removeItem('xbb-workspace');
+      this.workDir = '';
+    } else {
+      this.workDir = stored || '';
+    }
   }
 
   setWorkDir(dir: string) {
@@ -35,39 +51,47 @@ export class ClaudeService {
     return this.workDir;
   }
 
-  sendMessage(message: string): Observable<string> {
-    const subject = new Subject<string>();
+  sendMessage(message: string): Observable<StreamEvent> {
+    const subject = new Subject<StreamEvent>();
     this.isStreaming = true;
 
     window.electronAPI.removeStreamListeners();
 
     window.electronAPI.onClaudeStream((data: any) => {
       this.ngZone.run(() => {
-        console.log('[STREAM RECEIVED]', data.type, data.content?.substring(0, 30) || '');
-        // Handle our ACP StreamChunk format
         if (data.type === 'text' && data.content) {
-          subject.next(data.content);
+          subject.next({ type: 'text', content: data.content });
         } else if (data.type === 'thought' && data.content) {
-          subject.next(`_${data.content}_`);
+          subject.next({ type: 'thought', content: data.content });
         } else if (data.type === 'tool') {
-          const toolInfo = data.name ? `\n🔧 **${data.name}**` : '';
-          const toolInput = data.input ? `\n\`${data.input}\`` : '';
-          subject.next(`${toolInfo}${toolInput}\n`);
-        } else if (data.type === 'tool_update' && data.content) {
-          subject.next(data.content);
+          subject.next({
+            type: 'tool',
+            toolCallId: data.toolCallId,
+            name: data.title || data.name || 'Tool',
+            title: data.title || data.name || 'Tool',
+            input: data.input || '',
+            status: data.status || 'running',
+          });
+        } else if (data.type === 'tool_update') {
+          subject.next({
+            type: 'tool_update',
+            toolCallId: data.toolCallId,
+            status: data.status,
+            content: data.content || '',
+          });
         } else if (data.type === 'error' && data.content) {
-          subject.next(`[Error] ${data.content}`);
+          subject.next({ type: 'error', content: data.content });
         } else if (data.type === 'done') {
-          // Completion signal — handled by stream-end
+          // handled by stream-end
         }
-        // Legacy format support (in case old code path is hit)
+        // Legacy format
         else if (data.type === 'assistant' && data.content) {
           if (typeof data.content === 'string') {
-            subject.next(data.content);
+            subject.next({ type: 'text', content: data.content });
           } else if (Array.isArray(data.content)) {
             for (const block of data.content) {
               if (block.type === 'text') {
-                subject.next(block.text);
+                subject.next({ type: 'text', content: block.text });
               }
             }
           }

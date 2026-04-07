@@ -1,14 +1,24 @@
-import { Component, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, OnDestroy, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ClaudeService } from '../../services/claude.service';
+import { ClaudeService, StreamEvent } from '../../services/claude.service';
 import { Subscription } from 'rxjs';
+
+interface ToolBlock {
+  id: string;
+  name: string;
+  input: string;
+  status: string;
+  output: string;
+  expanded: boolean;
+}
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
-  timestamp: Date;
-  changedFiles?: string[];
+  tools: ToolBlock[];
+  error?: string;
+  thinking?: string;
 }
 
 @Component({
@@ -16,320 +26,456 @@ interface ChatMessage {
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="chat-page">
-      <div class="chat-header">
-        <h2>Chat with Claude</h2>
-        <span class="streaming-badge" *ngIf="claude.isStreaming">Thinking...</span>
-      </div>
-
+    <div class="chat-container">
       <div class="chat-messages" #messagesContainer>
-        <div class="empty-state" *ngIf="messages.length === 0">
-          <div class="empty-icon">&#128172;</div>
-          <h3>Ask Claude anything about your OpenClaw setup</h3>
-          <p>Examples:</p>
-          <div class="example-prompts">
-            <button class="example-btn" (click)="sendExample('Check if my WhatsApp gateway is running')">
-              Check if my WhatsApp gateway is running
+
+        <!-- Empty state -->
+        <div class="empty-state" *ngIf="messages.length === 0 && !claude.isStreaming">
+          <div class="empty-logo">C</div>
+          <h2>What can I help you with?</h2>
+          <div class="suggestions">
+            <button class="suggestion" (click)="sendExample('Check if my WhatsApp gateway is running')">
+              Check WhatsApp gateway status
             </button>
-            <button class="example-btn" (click)="sendExample('Show me the current agent configuration')">
-              Show me the current agent configuration
+            <button class="suggestion" (click)="sendExample('Show me the current agent configuration')">
+              Show agent configuration
             </button>
-            <button class="example-btn" (click)="sendExample('Restart the OpenClaw daemon')">
-              Restart the OpenClaw daemon
+            <button class="suggestion" (click)="sendExample('List running services')">
+              List running services
             </button>
           </div>
         </div>
 
-        <div
-          *ngFor="let msg of messages; let i = index"
-          class="message-row"
-          [class.user]="msg.role === 'user'"
-          [class.assistant]="msg.role === 'assistant'">
-          <div class="bubble" [class.user-bubble]="msg.role === 'user'" [class.assistant-bubble]="msg.role === 'assistant'">
-            <div class="bubble-content" [innerHTML]="formatContent(msg.content)"></div>
-            <div class="bubble-time">{{ msg.timestamp | date:'HH:mm' }}</div>
-          </div>
-          <div class="changed-files" *ngIf="msg.changedFiles && msg.changedFiles.length > 0">
-            <div class="files-header">
-              <span>Changed files:</span>
-              <button class="undo-btn" (click)="undo(i)">Undo</button>
+        <!-- Messages -->
+        <div class="messages-inner">
+          <ng-container *ngFor="let msg of messages; let i = index">
+            <!-- User message -->
+            <div class="msg-row msg-user" *ngIf="msg.role === 'user'">
+              <div class="user-bubble">{{ msg.content }}</div>
             </div>
-            <ul>
-              <li *ngFor="let f of msg.changedFiles">{{ f }}</li>
-            </ul>
-          </div>
-        </div>
 
-        <div class="thinking-indicator" *ngIf="claude.isStreaming && !currentStream">
-          <div class="dot"></div>
-          <div class="dot"></div>
-          <div class="dot"></div>
+            <!-- Assistant message -->
+            <div class="msg-row msg-assistant" *ngIf="msg.role === 'assistant'">
+              <!-- Thinking block -->
+              <div class="thinking-block" *ngIf="msg.thinking">
+                <span class="thinking-label">Thinking</span>
+                <span class="thinking-text">{{ truncate(msg.thinking, 120) }}</span>
+              </div>
+
+              <!-- Tool cards -->
+              <div class="tool-card" *ngFor="let tool of msg.tools" [class.tool-done]="tool.status === 'completed' || tool.status === 'done'" [class.tool-running]="tool.status === 'running' || tool.status === 'in_progress'">
+                <div class="tool-header" (click)="tool.expanded = !tool.expanded">
+                  <span class="tool-icon">
+                    <svg *ngIf="tool.status === 'running' || tool.status === 'in_progress'" class="spinner" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="20 12" /></svg>
+                    <span *ngIf="tool.status !== 'running' && tool.status !== 'in_progress'">&#10003;</span>
+                  </span>
+                  <span class="tool-name">{{ tool.name }}</span>
+                  <span class="tool-input-preview" *ngIf="tool.input && !tool.expanded">{{ truncate(tool.input, 60) }}</span>
+                  <span class="tool-expand">{{ tool.expanded ? '&#9650;' : '&#9660;' }}</span>
+                </div>
+                <div class="tool-body" *ngIf="tool.expanded">
+                  <div class="tool-input-full" *ngIf="tool.input">
+                    <pre>{{ tool.input }}</pre>
+                  </div>
+                  <div class="tool-output" *ngIf="tool.output">
+                    <pre>{{ truncate(tool.output, 2000) }}</pre>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Text content -->
+              <div class="assistant-text" *ngIf="msg.content" [innerHTML]="formatMarkdown(msg.content)"></div>
+
+              <!-- Error -->
+              <div class="error-text" *ngIf="msg.error">{{ msg.error }}</div>
+            </div>
+          </ng-container>
+
+          <!-- Streaming thinking dots -->
+          <div class="msg-row msg-assistant" *ngIf="claude.isStreaming && isWaiting">
+            <div class="thinking-dots">
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="chat-input-area">
-        <div class="input-wrapper">
+      <!-- Input bar -->
+      <div class="input-bar">
+        <div class="input-area" [class.focused]="inputFocused">
           <textarea
+            #inputField
             [(ngModel)]="inputText"
-            (keydown.enter)="onEnterKey($event)"
-            placeholder="Type your message..."
+            (keydown)="onKeyDown($event)"
+            (focus)="inputFocused = true"
+            (blur)="inputFocused = false"
+            (input)="autoResize($event)"
+            placeholder="Message Claude..."
             rows="1"
-            [disabled]="claude.isStreaming"
-            #inputField></textarea>
+            [disabled]="claude.isStreaming"></textarea>
           <button
-            class="send-btn"
+            class="send-button"
             (click)="send()"
+            [class.visible]="inputText.trim().length > 0"
             [disabled]="!inputText.trim() || claude.isStreaming">
-            <span>&#10148;</span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 14V2M8 2L3 7M8 2L13 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
           </button>
         </div>
       </div>
     </div>
   `,
   styles: [`
-    .chat-page {
+    :host {
+      display: block;
+      height: 100%;
+    }
+
+    .chat-container {
       display: flex;
       flex-direction: column;
       height: 100vh;
+      background: #f9f9f9;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     }
-    .chat-header {
-      padding: 16px 24px;
-      background: #fff;
-      border-bottom: 1px solid #e0e0e0;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-shrink: 0;
-    }
-    .chat-header h2 {
-      margin: 0;
-      font-size: 18px;
-      color: #1a1a2e;
-    }
-    .streaming-badge {
-      font-size: 12px;
-      background: #00a884;
-      color: #fff;
-      padding: 3px 10px;
-      border-radius: 12px;
-      animation: pulse 1.5s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
+
+    /* ── Messages area ── */
     .chat-messages {
       flex: 1;
       overflow-y: auto;
-      padding: 20px 24px;
+      padding: 24px 16px 8px;
+    }
+
+    .messages-inner {
+      max-width: 800px;
+      margin: 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 20px;
     }
+
+    /* ── Empty state ── */
     .empty-state {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      flex: 1;
+      height: 70vh;
       text-align: center;
-      color: #888;
     }
-    .empty-icon {
-      font-size: 48px;
-      margin-bottom: 12px;
-    }
-    .empty-state h3 {
-      font-size: 18px;
-      margin: 0 0 8px;
-      color: #555;
-    }
-    .empty-state p {
-      margin: 0 0 16px;
-      font-size: 14px;
-    }
-    .example-prompts {
+    .empty-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #1a1a2e;
+      color: #fff;
+      font-size: 24px;
+      font-weight: 700;
       display: flex;
-      flex-direction: column;
-      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
     }
-    .example-btn {
+    .empty-state h2 {
+      font-size: 22px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin: 0 0 24px;
+    }
+    .suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+    .suggestion {
       background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 10px 16px;
+      border: 1px solid #e0e0e0;
+      border-radius: 20px;
+      padding: 8px 16px;
       font-size: 13px;
+      color: #444;
       cursor: pointer;
-      color: #333;
       transition: all 0.15s;
     }
-    .example-btn:hover {
-      border-color: #00a884;
-      color: #00a884;
+    .suggestion:hover {
+      border-color: #999;
+      color: #111;
     }
-    .message-row {
+
+    /* ── Message rows ── */
+    .msg-row {
       display: flex;
       flex-direction: column;
-      max-width: 75%;
     }
-    .message-row.user {
-      align-self: flex-end;
+
+    /* ── User messages ── */
+    .msg-user {
       align-items: flex-end;
-    }
-    .message-row.assistant {
-      align-self: flex-start;
-      align-items: flex-start;
-    }
-    .bubble {
-      padding: 10px 14px;
-      border-radius: 12px;
-      font-size: 14px;
-      line-height: 1.5;
-      word-wrap: break-word;
-      white-space: pre-wrap;
     }
     .user-bubble {
-      background: #dcf8c6;
-      color: #1a1a1a;
-      border-bottom-right-radius: 4px;
-    }
-    .assistant-bubble {
-      background: #fff;
-      color: #1a1a1a;
-      border: 1px solid #e8e8e8;
-      border-bottom-left-radius: 4px;
-    }
-    .bubble-content {
-      margin: 0;
-    }
-    .bubble-content :first-child {
-      margin-top: 0;
-    }
-    .bubble-content :last-child {
-      margin-bottom: 0;
-    }
-    .bubble-time {
-      font-size: 11px;
-      color: #999;
-      margin-top: 4px;
-      text-align: right;
-    }
-    .changed-files {
-      margin-top: 6px;
-      padding: 8px 12px;
-      background: #fff8e1;
-      border-radius: 8px;
-      font-size: 12px;
-      border: 1px solid #ffe082;
-    }
-    .files-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    .undo-btn {
-      background: none;
-      border: 1px solid #ef6c00;
-      color: #ef6c00;
-      padding: 2px 10px;
-      border-radius: 4px;
-      font-size: 11px;
-      cursor: pointer;
-    }
-    .undo-btn:hover {
-      background: #ef6c00;
+      background: #059669;
       color: #fff;
+      padding: 8px 14px;
+      border-radius: 18px 18px 4px 18px;
+      font-size: 14px;
+      line-height: 1.5;
+      max-width: 75%;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
-    .changed-files ul {
-      margin: 0;
-      padding-left: 18px;
+
+    /* ── Assistant messages ── */
+    .msg-assistant {
+      align-items: flex-start;
+      gap: 8px;
     }
-    .changed-files li {
-      color: #555;
-      font-family: monospace;
-      font-size: 12px;
+
+    .assistant-text {
+      font-size: 14px;
+      line-height: 1.7;
+      color: #1a1a1a;
+      max-width: 100%;
+      word-break: break-word;
     }
-    .thinking-indicator {
+
+    /* Markdown rendered content */
+    .assistant-text :first-child { margin-top: 0; }
+    .assistant-text :last-child { margin-bottom: 0; }
+
+    /* ── Thinking ── */
+    .thinking-block {
       display: flex;
-      gap: 4px;
-      padding: 8px;
-      align-self: flex-start;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 12px;
+      color: #888;
+      padding: 4px 0;
     }
-    .thinking-indicator .dot {
-      width: 8px;
-      height: 8px;
-      background: #bbb;
-      border-radius: 50%;
-      animation: bounce 1.2s infinite;
-    }
-    .thinking-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
-    .thinking-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes bounce {
-      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-      40% { transform: scale(1); opacity: 1; }
-    }
-    .chat-input-area {
-      padding: 16px 24px;
-      background: #fff;
-      border-top: 1px solid #e0e0e0;
+    .thinking-label {
+      font-weight: 600;
+      color: #aaa;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
       flex-shrink: 0;
     }
-    .input-wrapper {
-      display: flex;
-      gap: 10px;
-      align-items: flex-end;
+    .thinking-text {
+      font-style: italic;
+      color: #999;
     }
-    .input-wrapper textarea {
+
+    /* ── Tool cards ── */
+    .tool-card {
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      overflow: hidden;
+      font-size: 13px;
+      max-width: 100%;
+    }
+    .tool-card.tool-running {
+      border-color: #d4a574;
+    }
+    .tool-card.tool-done {
+      border-color: #e5e5e5;
+    }
+    .tool-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      user-select: none;
+      background: #fafafa;
+    }
+    .tool-header:hover {
+      background: #f0f0f0;
+    }
+    .tool-icon {
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #059669;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    .tool-card.tool-running .tool-icon {
+      color: #d97706;
+    }
+    .spinner {
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .tool-name {
+      font-weight: 600;
+      color: #333;
+      flex-shrink: 0;
+    }
+    .tool-input-preview {
+      color: #888;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       flex: 1;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      padding: 10px 14px;
+      min-width: 0;
+    }
+    .tool-expand {
+      color: #aaa;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+    .tool-body {
+      border-top: 1px solid #eee;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .tool-input-full,
+    .tool-output {
+      padding: 8px 12px;
+    }
+    .tool-input-full {
+      background: #f8f8f8;
+    }
+    .tool-output {
+      background: #fafafa;
+      border-top: 1px solid #f0f0f0;
+    }
+    .tool-body pre {
+      margin: 0;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #444;
+    }
+
+    /* ── Error text ── */
+    .error-text {
+      color: #dc2626;
+      font-size: 13px;
+      padding: 6px 10px;
+      background: #fef2f2;
+      border-radius: 6px;
+      border: 1px solid #fee2e2;
+    }
+
+    /* ── Thinking dots ── */
+    .thinking-dots {
+      display: flex;
+      gap: 4px;
+      padding: 6px 0;
+    }
+    .thinking-dots .dot {
+      width: 7px;
+      height: 7px;
+      background: #aaa;
+      border-radius: 50%;
+      animation: dotBounce 1.2s infinite;
+    }
+    .thinking-dots .dot:nth-child(2) { animation-delay: 0.15s; }
+    .thinking-dots .dot:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes dotBounce {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ── Input bar ── */
+    .input-bar {
+      padding: 12px 16px 20px;
+      background: #f9f9f9;
+      flex-shrink: 0;
+    }
+    .input-area {
+      max-width: 800px;
+      margin: 0 auto;
+      display: flex;
+      align-items: flex-end;
+      background: #fff;
+      border: 1px solid #d9d9d9;
+      border-radius: 20px;
+      padding: 6px 6px 6px 16px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .input-area.focused {
+      border-color: #999;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
+    }
+    .input-area textarea {
+      flex: 1;
+      border: none;
+      outline: none;
+      resize: none;
       font-size: 14px;
       font-family: inherit;
-      resize: none;
-      outline: none;
-      max-height: 120px;
-      line-height: 1.4;
+      line-height: 1.5;
+      padding: 6px 0;
+      max-height: 200px;
+      background: transparent;
+      color: #1a1a1a;
     }
-    .input-wrapper textarea:focus {
-      border-color: #00a884;
+    .input-area textarea::placeholder {
+      color: #aaa;
     }
-    .send-btn {
-      width: 42px;
-      height: 42px;
+    .input-area textarea:disabled {
+      opacity: 0.5;
+    }
+
+    .send-button {
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       border: none;
-      background: #00a884;
+      background: #1a1a1a;
       color: #fff;
-      font-size: 18px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transition: opacity 0.15s;
+      opacity: 0;
+      transform: scale(0.8);
+      transition: opacity 0.15s, transform 0.15s, background 0.15s;
+      pointer-events: none;
     }
-    .send-btn:disabled {
-      opacity: 0.4;
+    .send-button.visible {
+      opacity: 1;
+      transform: scale(1);
+      pointer-events: auto;
+    }
+    .send-button:hover:not(:disabled) {
+      background: #333;
+    }
+    .send-button:disabled {
+      opacity: 0.3;
       cursor: not-allowed;
-    }
-    .send-btn:hover:not(:disabled) {
-      background: #009674;
     }
   `],
 })
 export class ChatComponent implements OnDestroy, AfterViewChecked {
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
+  @ViewChild('inputField') private inputField!: ElementRef;
 
   messages: ChatMessage[] = [];
   inputText = '';
-  currentStream = '';
+  inputFocused = false;
+  isWaiting = false;
   private streamSub: Subscription | null = null;
   private shouldScroll = false;
+  private currentAssistant: ChatMessage | null = null;
 
-  constructor(public claude: ClaudeService) {}
+  constructor(public claude: ClaudeService, private cdr: ChangeDetectorRef) {}
 
   ngAfterViewChecked() {
     if (this.shouldScroll) {
@@ -342,12 +488,17 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
     this.streamSub?.unsubscribe();
   }
 
-  onEnterKey(event: Event) {
-    const ke = event as KeyboardEvent;
-    if (!ke.shiftKey) {
-      ke.preventDefault();
+  onKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
       this.send();
     }
+  }
+
+  autoResize(event: Event) {
+    const el = event.target as HTMLTextAreaElement;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
   }
 
   sendExample(text: string) {
@@ -359,86 +510,115 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
     const text = this.inputText.trim();
     if (!text || this.claude.isStreaming) return;
 
-    this.messages.push({
-      role: 'user',
-      content: text,
-      timestamp: new Date(),
-    });
-
+    this.messages.push({ role: 'user', content: text, tools: [] });
     this.inputText = '';
-    this.currentStream = '';
     this.shouldScroll = true;
+    this.isWaiting = true;
 
-    // Create the assistant message placeholder
-    const assistantMsg: ChatMessage = {
-      role: 'assistant',
-      content: '',
-      timestamp: new Date(),
-    };
+    // Reset textarea height
+    if (this.inputField?.nativeElement) {
+      this.inputField.nativeElement.style.height = 'auto';
+    }
+
+    const assistantMsg: ChatMessage = { role: 'assistant', content: '', tools: [], thinking: '' };
     this.messages.push(assistantMsg);
+    this.currentAssistant = assistantMsg;
 
     this.streamSub = this.claude.sendMessage(text).subscribe({
-      next: (chunk) => {
-        this.currentStream += chunk;
-        assistantMsg.content = this.currentStream;
+      next: (event: StreamEvent) => {
+        this.isWaiting = false;
+
+        switch (event.type) {
+          case 'text':
+            assistantMsg.content += event.content || '';
+            break;
+
+          case 'thought':
+            assistantMsg.thinking = (assistantMsg.thinking || '') + (event.content || '');
+            break;
+
+          case 'tool': {
+            const toolBlock: ToolBlock = {
+              id: event.toolCallId || String(Date.now()),
+              name: event.title || event.name || 'Tool',
+              input: event.input || '',
+              status: event.status || 'running',
+              output: '',
+              expanded: false,
+            };
+            assistantMsg.tools.push(toolBlock);
+            break;
+          }
+
+          case 'tool_update': {
+            const existing = assistantMsg.tools.find(t => t.id === event.toolCallId);
+            if (existing) {
+              if (event.status) existing.status = event.status;
+              if (event.content) existing.output += event.content;
+            }
+            break;
+          }
+
+          case 'error':
+            assistantMsg.error = event.content || 'Unknown error';
+            break;
+        }
+
         this.shouldScroll = true;
       },
       error: (err) => {
-        assistantMsg.content = this.currentStream || `Error: ${err.message || 'Something went wrong'}`;
-        this.currentStream = '';
+        this.isWaiting = false;
+        assistantMsg.error = assistantMsg.error || err.message || 'Something went wrong';
+        this.currentAssistant = null;
       },
       complete: () => {
-        if (!assistantMsg.content) {
-          assistantMsg.content = this.currentStream || '(No response)';
+        this.isWaiting = false;
+        if (!assistantMsg.content && !assistantMsg.tools.length && !assistantMsg.error) {
+          assistantMsg.content = '(No response)';
         }
-        // Try to extract changed files from content
-        assistantMsg.changedFiles = this.extractChangedFiles(assistantMsg.content);
-        this.currentStream = '';
+        // Mark all tools as done
+        for (const tool of assistantMsg.tools) {
+          if (tool.status === 'running' || tool.status === 'in_progress') {
+            tool.status = 'completed';
+          }
+        }
+        this.currentAssistant = null;
       },
     });
   }
 
-  undo(messageIndex: number) {
-    const msg = this.messages[messageIndex];
-    if (!msg?.changedFiles?.length) return;
-    // Send an undo request to Claude
-    this.inputText = `Undo the changes you just made to: ${msg.changedFiles.join(', ')}`;
-    this.send();
+  truncate(text: string, max: number): string {
+    if (!text) return '';
+    return text.length > max ? text.substring(0, max) + '...' : text;
   }
 
-  formatContent(content: string): string {
-    // Basic formatting: escape HTML, then convert markdown-style code blocks
+  formatMarkdown(content: string): string {
     let html = content
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
 
     // Code blocks
-    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+    html = html.replace(/```(\w*)\n([\s\S]*?)```/g,
+      '<pre style="background:#f4f4f5;padding:12px;border-radius:6px;overflow-x:auto;font-size:12px;line-height:1.5;margin:8px 0"><code>$2</code></pre>');
     // Inline code
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    html = html.replace(/`([^`]+)`/g,
+      '<code style="background:#f4f4f5;padding:1px 5px;border-radius:3px;font-size:12px">$1</code>');
     // Bold
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Italic
+    html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+    // Unordered lists
+    html = html.replace(/^[-*] (.+)$/gm, '<li style="margin-left:20px;margin-bottom:2px">$1</li>');
+    // Ordered lists
+    html = html.replace(/^\d+\. (.+)$/gm, '<li style="margin-left:20px;margin-bottom:2px">$1</li>');
+    // Line breaks (not inside pre blocks)
+    html = html.replace(/\n/g, '<br>');
+    // Clean up double breaks after block elements
+    html = html.replace(/(<\/pre>)<br>/g, '$1');
+    html = html.replace(/(<\/li>)<br>/g, '$1');
 
     return html;
-  }
-
-  private extractChangedFiles(content: string): string[] {
-    const files: string[] = [];
-    const patterns = [
-      /(?:wrote|edited|created|modified|updated)\s+(?:file\s+)?[`"]?([/\w.\-]+)[`"]?/gi,
-      /(?:Writing|Editing|Creating)\s+(?:to\s+)?[`"]?([/\w.\-]+)[`"]?/gi,
-    ];
-    for (const pat of patterns) {
-      let match;
-      while ((match = pat.exec(content)) !== null) {
-        const file = match[1];
-        if (file && !files.includes(file) && file.includes('.')) {
-          files.push(file);
-        }
-      }
-    }
-    return files;
   }
 
   private scrollToBottom() {

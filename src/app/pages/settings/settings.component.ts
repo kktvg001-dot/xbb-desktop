@@ -69,9 +69,9 @@ interface Settings {
             type="text"
             id="workspace"
             [(ngModel)]="settings.workspacePath"
-            placeholder="/home/user/.openclaw"
+            placeholder="~ (user home directory)"
           />
-          <span class="help-text">Working directory for Claude Code operations</span>
+          <span class="help-text">Working directory for Claude Code (defaults to home dir)</span>
         </div>
 
         <div class="form-actions">
@@ -238,7 +238,11 @@ export class SettingsComponent implements OnInit {
       // Get correct workspace path from Electron (OS-aware)
       if ((window as any).electronAPI) {
         const config = await (window as any).electronAPI.getConfig();
-        if (!this.settings.workspacePath || this.settings.workspacePath.includes('/home/')) {
+        // Migrate away from .openclaw default
+        if (this.settings.workspacePath && this.settings.workspacePath.includes('.openclaw')) {
+          this.settings.workspacePath = config.defaultWorkspace || '';
+        }
+        if (!this.settings.workspacePath) {
           this.settings.workspacePath = config.defaultWorkspace || '';
         }
         if (!this.settings.apiKey) this.settings.apiKey = config.apiKey || '';
