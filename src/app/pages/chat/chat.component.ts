@@ -108,6 +108,12 @@ interface ChatMessage {
               <span class="dot"></span>
             </div>
           </div>
+
+          <!-- Activity indicator -->
+          <div class="activity-indicator" *ngIf="claude.isStreaming && !isWaiting">
+            <div class="activity-dot"></div>
+            <span>{{ currentActivity }}</span>
+          </div>
         </div>
       </div>
 
@@ -137,14 +143,23 @@ interface ChatMessage {
             (focus)="inputFocused = true"
             (blur)="inputFocused = false"
             (input)="autoResize($event)"
-            placeholder="Message Claude..."
-            rows="1"
-            [disabled]="claude.isStreaming"></textarea>
+            [placeholder]="claude.isStreaming ? 'Type to queue message...' : 'Message Claude...'"
+            rows="1"></textarea>
+          <div class="queued-badge" *ngIf="pendingQueue.length > 0">{{ pendingQueue.length }} queued</div>
           <button
+            *ngIf="claude.isStreaming"
+            class="stop-btn"
+            (click)="stopGeneration()">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <rect x="2" y="2" width="10" height="10" rx="1.5" fill="white"/>
+            </svg>
+          </button>
+          <button
+            *ngIf="!claude.isStreaming"
             class="send-button"
             (click)="send()"
             [class.visible]="inputText.trim().length > 0 || !!pendingImageBase64"
-            [disabled]="(!inputText.trim() && !pendingImageBase64) || claude.isStreaming">
+            [disabled]="!inputText.trim() && !pendingImageBase64">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M8 14V2M8 2L3 7M8 2L13 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -576,6 +591,59 @@ interface ChatMessage {
       opacity: 0.3;
       cursor: not-allowed;
     }
+
+    /* ── Activity indicator ── */
+    .activity-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+      color: #6b7280;
+      font-size: 13px;
+    }
+    .activity-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00a884;
+      animation: pulse 1.5s infinite;
+      flex-shrink: 0;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* ── Stop button ── */
+    .stop-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #ef4444;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .stop-btn:hover {
+      background: #dc2626;
+    }
+
+    /* ── Queued badge ── */
+    .queued-badge {
+      font-size: 11px;
+      color: #059669;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 10px;
+      padding: 2px 8px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-right: 4px;
+    }
   `],
 })
 export class ChatComponent implements OnDestroy, AfterViewChecked {
@@ -589,6 +657,8 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
   pendingImageBase64: string | null = null;
   isDragging = false;
   lightboxImage: string | null = null;
+  currentActivity = 'Thinking...';
+  pendingQueue: string[] = [];
 
   previewImage(base64: string) {
     this.lightboxImage = base64;
@@ -691,10 +761,39 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
     this.send();
   }
 
+  stopGeneration() {
+    window.electronAPI.claudeCancel();
+    this.claude.isStreaming = false;
+    this.currentActivity = '';
+    this.isWaiting = false;
+    this.streamSub?.unsubscribe();
+    window.electronAPI.removeStreamListeners();
+    // Mark running tools as completed
+    if (this.currentAssistant) {
+      for (const tool of this.currentAssistant.tools) {
+        if (tool.status === 'running' || tool.status === 'in_progress') {
+          tool.status = 'completed';
+        }
+      }
+      this.currentAssistant = null;
+    }
+  }
+
   send() {
     const text = this.inputText.trim();
     const image = this.pendingImageBase64;
-    if ((!text && !image) || this.claude.isStreaming) return;
+    if (!text && !image) return;
+
+    // Queue the message if Claude is currently streaming
+    if (this.claude.isStreaming) {
+      this.pendingQueue.push(text);
+      this.inputText = '';
+      this.pendingImageBase64 = null;
+      if (this.inputField?.nativeElement) {
+        this.inputField.nativeElement.style.height = 'auto';
+      }
+      return;
+    }
 
     const displayContent = text || '';
     this.messages.push({ role: 'user', content: displayContent, tools: [], imageBase64: image || undefined });
@@ -719,6 +818,7 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
         switch (event.type) {
           case 'text':
             assistantMsg.content += event.content || '';
+            this.currentActivity = 'Thinking...';
             break;
 
           case 'thought':
@@ -735,6 +835,13 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
               expanded: false,
             };
             assistantMsg.tools.push(toolBlock);
+            // Update activity indicator based on tool name
+            const toolName = toolBlock.name;
+            if (toolName.includes('Read')) this.currentActivity = '\u{1F4D6} Reading file...';
+            else if (toolName.includes('Write') || toolName.includes('Edit')) this.currentActivity = '\u{270F}\u{FE0F} Writing...';
+            else if (toolName.includes('Bash')) this.currentActivity = '\u{1F4BB} Running command...';
+            else if (/search|Web|Grep|Glob/i.test(toolName)) this.currentActivity = '\u{1F50D} Searching...';
+            else this.currentActivity = '\u{1F527} ' + toolName + '...';
             break;
           }
 
@@ -756,11 +863,13 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
       },
       error: (err) => {
         this.isWaiting = false;
+        this.currentActivity = '';
         assistantMsg.error = assistantMsg.error || err.message || 'Something went wrong';
         this.currentAssistant = null;
       },
       complete: () => {
         this.isWaiting = false;
+        this.currentActivity = '';
         if (!assistantMsg.content && !assistantMsg.tools.length && !assistantMsg.error) {
           assistantMsg.content = '(No response)';
         }
@@ -771,6 +880,13 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
           }
         }
         this.currentAssistant = null;
+
+        // Send queued message if any
+        if (this.pendingQueue.length > 0) {
+          const nextMsg = this.pendingQueue.shift()!;
+          this.inputText = nextMsg;
+          setTimeout(() => this.send(), 100);
+        }
       },
     });
   }

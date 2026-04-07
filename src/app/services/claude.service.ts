@@ -17,6 +17,7 @@ declare global {
       checkTool: (tool: string) => Promise<{ installed: boolean; version: string | null }>;
       installTool: (tool: string) => Promise<{ success: boolean; output?: string; error?: string }>;
       claudeChat: (message: string, workDir: string, imageBase64?: string) => Promise<{ success: boolean; output: string }>;
+      claudeCancel: () => Promise<any>;
       onClaudeStream: (callback: (data: any) => void) => void;
       onClaudeStreamEnd: (callback: (data: any) => void) => void;
       removeStreamListeners: () => void;
