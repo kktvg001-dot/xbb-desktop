@@ -43,9 +43,24 @@ export class ClaudeService {
 
     window.electronAPI.onClaudeStream((data: any) => {
       this.ngZone.run(() => {
-        if (data.type === 'error') {
+        // Handle our ACP StreamChunk format
+        if (data.type === 'text' && data.content) {
+          subject.next(data.content);
+        } else if (data.type === 'thought' && data.content) {
+          subject.next(`_${data.content}_`);
+        } else if (data.type === 'tool') {
+          const toolInfo = data.name ? `\n🔧 **${data.name}**` : '';
+          const toolInput = data.input ? `\n\`${data.input}\`` : '';
+          subject.next(`${toolInfo}${toolInput}\n`);
+        } else if (data.type === 'tool_update' && data.content) {
+          subject.next(data.content);
+        } else if (data.type === 'error' && data.content) {
           subject.next(`[Error] ${data.content}`);
-        } else if (data.type === 'assistant' && data.content) {
+        } else if (data.type === 'done') {
+          // Completion signal — handled by stream-end
+        }
+        // Legacy format support (in case old code path is hit)
+        else if (data.type === 'assistant' && data.content) {
           if (typeof data.content === 'string') {
             subject.next(data.content);
           } else if (Array.isArray(data.content)) {
@@ -55,8 +70,6 @@ export class ClaudeService {
               }
             }
           }
-        } else if (data.type === 'content_block_delta' && data.delta?.text) {
-          subject.next(data.delta.text);
         }
       });
     });
