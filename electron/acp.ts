@@ -203,10 +203,14 @@ export class AcpConnection {
     return this.sessionId!;
   }
 
-  // Send a prompt (user message)
+  // Send a prompt (user message) — matches AionUI/ACP format
   async prompt(message: string): Promise<void> {
+    if (!this.sessionId) {
+      throw new Error('No active session. Call newSession() first.');
+    }
     await this.sendRequest('session/prompt', {
-      prompt: message,
+      sessionId: this.sessionId,
+      prompt: [{ type: 'text', text: message }],
     });
   }
 

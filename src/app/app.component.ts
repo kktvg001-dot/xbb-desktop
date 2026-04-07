@@ -18,7 +18,7 @@ import { Subscription, filter } from 'rxjs';
           </div>
         </div>
         <ul class="nav-list">
-          <li>
+          <li *ngIf="showSetupLink">
             <a routerLink="/setup" routerLinkActive="active" class="nav-item">
               <span class="nav-icon">&#9881;</span>
               <span class="nav-label">Setup</span>
@@ -132,6 +132,7 @@ import { Subscription, filter } from 'rxjs';
 })
 export class AppComponent implements OnInit, OnDestroy {
   showSidebar = true;
+  showSetupLink = false;
   private routeSub!: Subscription;
 
   constructor(
@@ -152,6 +153,7 @@ export class AppComponent implements OnInit, OnDestroy {
         try {
           const tools = await this.installer.checkAll();
           const allInstalled = tools.claude.installed && tools.openclaw.installed;
+          this.showSetupLink = !allInstalled;
           if (!allInstalled) {
             this.router.navigate(['/setup']);
           }

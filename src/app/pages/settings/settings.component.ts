@@ -48,12 +48,18 @@ interface Settings {
 
         <div class="form-group">
           <label for="model">Model</label>
-          <select id="model" [(ngModel)]="settings.model">
-            <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
-            <option value="claude-opus-4-20250514">Claude Opus 4</option>
-            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-            <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
+          <select id="model" [(ngModel)]="settings.model" (ngModelChange)="onModelChange($event)">
+            <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (default)</option>
+            <option value="claude-opus-4-6">Claude Opus 4.6</option>
+            <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+            <option value="custom">Custom model...</option>
           </select>
+          <input *ngIf="settings.model === 'custom' || isCustomModel"
+            type="text"
+            [(ngModel)]="customModelId"
+            placeholder="e.g. gpt-5.4 or claude-sonnet-4-6"
+            class="input-field"
+            style="margin-top: 8px;">
           <span class="help-text">Model used for Claude Code sessions</span>
         </div>
 
@@ -197,7 +203,7 @@ export class SettingsComponent implements OnInit {
   settings: Settings = {
     apiKey: '',
     proxyUrl: '',
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
     workspacePath: '',
   };
 
@@ -205,6 +211,17 @@ export class SettingsComponent implements OnInit {
   testing = false;
   statusMessage = '';
   statusError = false;
+  customModelId = '';
+  isCustomModel = false;
+
+  onModelChange(value: string) {
+    if (value === 'custom') {
+      this.isCustomModel = true;
+    } else {
+      this.isCustomModel = false;
+      this.customModelId = '';
+    }
+  }
 
   constructor(private claude: ClaudeService) {}
 
@@ -212,13 +229,29 @@ export class SettingsComponent implements OnInit {
     this.load();
   }
 
-  load() {
+  async load() {
     try {
       const saved = localStorage.getItem('xbb-settings');
       if (saved) {
         this.settings = { ...this.settings, ...JSON.parse(saved) };
       }
+      // Get correct workspace path from Electron (OS-aware)
+      if ((window as any).electronAPI) {
+        const config = await (window as any).electronAPI.getConfig();
+        if (!this.settings.workspacePath || this.settings.workspacePath.includes('/home/')) {
+          this.settings.workspacePath = config.defaultWorkspace || '';
+        }
+        if (!this.settings.apiKey) this.settings.apiKey = config.apiKey || '';
+        if (!this.settings.proxyUrl) this.settings.proxyUrl = config.apiBaseUrl || '';
+      }
       this.settings.workspacePath = this.settings.workspacePath || this.claude.getWorkDir();
+      // Check if saved model is custom
+      const knownModels = ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5-20251001', 'custom'];
+      if (this.settings.model && !knownModels.includes(this.settings.model)) {
+        this.customModelId = this.settings.model;
+        this.isCustomModel = true;
+        this.settings.model = 'custom';
+      }
     } catch {}
   }
 

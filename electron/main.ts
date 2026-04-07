@@ -511,7 +511,11 @@ ipcMain.handle('install-openclaw', async () => {
 
 // ============ IPC: GET CONFIG ============
 
-ipcMain.handle('get-config', async () => CONFIG);
+ipcMain.handle('get-config', async () => ({
+  ...CONFIG,
+  homeDir: getHomeDir(),
+  defaultWorkspace: path.join(getHomeDir(), '.openclaw'),
+}));
 
 // ============ IPC: ACP CONNECTION MANAGEMENT ============
 
