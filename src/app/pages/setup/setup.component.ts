@@ -643,6 +643,7 @@ export class SetupComponent implements OnInit, OnDestroy {
   }
 
   startChatting() {
+    localStorage.setItem('xbb-setup-complete', 'true');
     this.router.navigate(['/chat']);
   }
 }

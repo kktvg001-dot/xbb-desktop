@@ -147,18 +147,33 @@ export class AppComponent implements OnInit, OnDestroy {
       this.showSidebar = !e.urlAfterRedirects.startsWith('/setup');
     });
 
-    // Don't block startup — check tools in background after UI loads
+    // Check if setup was already completed
+    const setupDone = localStorage.getItem('xbb-setup-complete');
+    if (setupDone === 'true') {
+      // Setup was done before — go straight to chat
+      this.showSetupLink = false;
+      this.router.navigate(['/chat']);
+      return;
+    }
+
+    // First launch — check tools in background
     if (this.installer.isElectron) {
       setTimeout(async () => {
         try {
           const tools = await this.installer.checkAll();
           const allInstalled = tools.claude.installed && tools.openclaw.installed;
-          this.showSetupLink = !allInstalled;
-          if (!allInstalled) {
+          if (allInstalled) {
+            // Tools are installed — mark setup complete and go to chat
+            localStorage.setItem('xbb-setup-complete', 'true');
+            this.showSetupLink = false;
+            this.router.navigate(['/chat']);
+          } else {
+            this.showSetupLink = true;
             this.router.navigate(['/setup']);
           }
         } catch {
-          // If check fails, go to setup
+          // Check failed — show setup to be safe
+          this.showSetupLink = true;
           this.router.navigate(['/setup']);
         }
       }, 500);
