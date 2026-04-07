@@ -32,4 +32,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAutostart: () => ipcRenderer.invoke('get-autostart'),
   setAutostart: (enabled: boolean) => ipcRenderer.invoke('set-autostart', enabled),
   minimizeToTray: () => ipcRenderer.invoke('minimize-to-tray'),
+  // Conversation history
+  getConversations: () => ipcRenderer.invoke('get-conversations'),
+  saveConversation: (conv: any) => ipcRenderer.invoke('save-conversation', conv),
+  deleteConversation: (id: string) => ipcRenderer.invoke('delete-conversation', id),
+  // Session management for conversation switching
+  claudeNewSession: (workDir: string, resumeSessionId?: string) => ipcRenderer.invoke('claude-new-session', workDir, resumeSessionId),
 });

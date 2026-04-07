@@ -1,7 +1,7 @@
-import { Component, OnDestroy, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ClaudeService, StreamEvent } from '../../services/claude.service';
+import { ClaudeService, StreamEvent, ConversationEntry } from '../../services/claude.service';
 import { Subscription } from 'rxjs';
 
 interface ToolBlock {
@@ -29,10 +29,56 @@ interface ChatMessage {
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="chat-container"
-      (dragover)="onDragOver($event)"
-      (dragleave)="onDragLeave($event)"
-      (drop)="onDrop($event)">
+    <div class="chat-layout">
+      <!-- Conversation history sidebar -->
+      <div class="conv-sidebar" [class.conv-sidebar-open]="sidebarOpen">
+        <button class="new-chat-btn" (click)="newChat()">+ New Chat</button>
+        <div class="conv-list">
+          <ng-container *ngIf="groupedConversations.today.length > 0">
+            <div class="conv-group-label">Today</div>
+            <div class="conv-item"
+              *ngFor="let c of groupedConversations.today"
+              [class.conv-active]="c.id === currentConversationId"
+              (click)="loadConversation(c)">
+              <span class="conv-title">{{ c.title }}</span>
+              <button class="conv-delete" (click)="deleteConversation(c.id, $event)">&times;</button>
+            </div>
+          </ng-container>
+          <ng-container *ngIf="groupedConversations.yesterday.length > 0">
+            <div class="conv-group-label">Yesterday</div>
+            <div class="conv-item"
+              *ngFor="let c of groupedConversations.yesterday"
+              [class.conv-active]="c.id === currentConversationId"
+              (click)="loadConversation(c)">
+              <span class="conv-title">{{ c.title }}</span>
+              <button class="conv-delete" (click)="deleteConversation(c.id, $event)">&times;</button>
+            </div>
+          </ng-container>
+          <ng-container *ngIf="groupedConversations.previous.length > 0">
+            <div class="conv-group-label">Previous</div>
+            <div class="conv-item"
+              *ngFor="let c of groupedConversations.previous"
+              [class.conv-active]="c.id === currentConversationId"
+              (click)="loadConversation(c)">
+              <span class="conv-title">{{ c.title }}</span>
+              <button class="conv-delete" (click)="deleteConversation(c.id, $event)">&times;</button>
+            </div>
+          </ng-container>
+          <div class="conv-empty" *ngIf="conversations.length === 0">No conversations yet</div>
+        </div>
+      </div>
+
+      <!-- Sidebar toggle (mobile) -->
+      <button class="sidebar-toggle" (click)="sidebarOpen = !sidebarOpen">
+        <span *ngIf="!sidebarOpen">&#9776;</span>
+        <span *ngIf="sidebarOpen">&larr;</span>
+      </button>
+
+      <!-- Main chat area -->
+      <div class="chat-container"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)"
+        (drop)="onDrop($event)">
       <div class="chat-messages" #messagesContainer>
 
         <!-- Empty state -->
@@ -183,11 +229,12 @@ interface ChatMessage {
           </button>
         </div>
       </div>
-    </div>
+    </div><!-- /chat-container -->
     <!-- Image lightbox -->
     <div class="image-lightbox" *ngIf="lightboxImage" (click)="lightboxImage = null">
       <img [src]="'data:image/png;base64,' + lightboxImage" alt="Preview" />
     </div>
+    </div><!-- /chat-layout -->
   `,
   styles: [`
     :host {
@@ -195,10 +242,157 @@ interface ChatMessage {
       height: 100%;
     }
 
+    /* ── Chat layout with sidebar ── */
+    .chat-layout {
+      display: flex;
+      height: 100%;
+      position: relative;
+    }
+
+    .conv-sidebar {
+      width: 250px;
+      min-width: 250px;
+      background: #16162a;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(255,255,255,0.06);
+      overflow: hidden;
+    }
+
+    .new-chat-btn {
+      margin: 12px;
+      padding: 10px 16px;
+      background: #059669;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+    .new-chat-btn:hover {
+      background: #047857;
+    }
+
+    .conv-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 0 12px;
+    }
+
+    .conv-group-label {
+      padding: 12px 16px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #666;
+    }
+
+    .conv-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px 8px 16px;
+      cursor: pointer;
+      transition: background 0.1s;
+      border-left: 3px solid transparent;
+      position: relative;
+    }
+    .conv-item:hover {
+      background: rgba(255,255,255,0.05);
+    }
+    .conv-item.conv-active {
+      background: rgba(5, 150, 105, 0.12);
+      border-left-color: #059669;
+    }
+
+    .conv-title {
+      flex: 1;
+      min-width: 0;
+      color: #ccc;
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .conv-item.conv-active .conv-title {
+      color: #fff;
+    }
+
+    .conv-delete {
+      display: none;
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 2px 4px;
+      line-height: 1;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .conv-item:hover .conv-delete {
+      display: block;
+    }
+    .conv-delete:hover {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    .conv-empty {
+      padding: 20px 16px;
+      color: #555;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .sidebar-toggle {
+      display: none;
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      z-index: 50;
+      width: 32px;
+      height: 32px;
+      background: #1a1a2e;
+      color: #ccc;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+    }
+    .sidebar-toggle:hover {
+      background: #252540;
+    }
+
+    @media (max-width: 768px) {
+      .conv-sidebar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        z-index: 40;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease;
+      }
+      .conv-sidebar.conv-sidebar-open {
+        transform: translateX(0);
+      }
+      .sidebar-toggle {
+        display: flex;
+      }
+    }
+
     .chat-container {
       display: flex;
       flex-direction: column;
-      height: 100vh;
+      height: 100%;
+      flex: 1;
+      min-width: 0;
       background: #f9f9f9;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     }
@@ -719,7 +913,7 @@ interface ChatMessage {
     }
   `],
 })
-export class ChatComponent implements OnDestroy, AfterViewChecked {
+export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
   @ViewChild('inputField') private inputField!: ElementRef;
 
@@ -733,6 +927,12 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
   currentActivity = 'Thinking...';
   pendingQueue: string[] = [];
 
+  // Conversation sidebar state
+  conversations: ConversationEntry[] = [];
+  currentConversationId: string | null = null;
+  sidebarOpen = false;
+  groupedConversations: { today: ConversationEntry[]; yesterday: ConversationEntry[]; previous: ConversationEntry[] } = { today: [], yesterday: [], previous: [] };
+
   previewImage(base64: string) {
     this.lightboxImage = base64;
   }
@@ -744,6 +944,10 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
   private readonly IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
   constructor(public claude: ClaudeService, private cdr: ChangeDetectorRef) {}
+
+  async ngOnInit() {
+    await this.loadConversations();
+  }
 
   ngAfterViewChecked() {
     if (this.shouldScroll) {
@@ -877,6 +1081,9 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
     this.shouldScroll = true;
     this.isWaiting = true;
 
+    // Ensure conversation entry exists
+    this.ensureConversation();
+
     // Reset textarea height
     if (this.inputField?.nativeElement) {
       this.inputField.nativeElement.style.height = 'auto';
@@ -941,6 +1148,7 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
         this.currentActivity = '';
         assistantMsg.error = assistantMsg.error || err.message || 'Something went wrong';
         this.currentAssistant = null;
+        this.saveCurrentConversation();
       },
       complete: () => {
         this.isWaiting = false;
@@ -956,6 +1164,9 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
         }
         this.currentAssistant = null;
 
+        // Save conversation after response completes
+        this.saveCurrentConversation();
+
         // Send queued message if any
         if (this.pendingQueue.length > 0) {
           const nextMsg = this.pendingQueue.shift()!;
@@ -964,6 +1175,175 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
         }
       },
     });
+  }
+
+  // ── Conversation history management ──
+
+  async loadConversations() {
+    try {
+      this.conversations = await window.electronAPI.getConversations();
+    } catch {
+      this.conversations = [];
+    }
+    this.groupConversations();
+  }
+
+  private groupConversations() {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const yesterdayStart = todayStart - 86400000;
+
+    this.groupedConversations = { today: [], yesterday: [], previous: [] };
+    for (const c of this.conversations) {
+      if (c.timestamp >= todayStart) {
+        this.groupedConversations.today.push(c);
+      } else if (c.timestamp >= yesterdayStart) {
+        this.groupedConversations.yesterday.push(c);
+      } else {
+        this.groupedConversations.previous.push(c);
+      }
+    }
+  }
+
+  private async saveCurrentConversation() {
+    if (!this.currentConversationId) return;
+    const conv = this.conversations.find(c => c.id === this.currentConversationId);
+    if (!conv) return;
+    // Serialize messages (strip heavy fields for storage)
+    conv.messages = this.messages.map(m => ({
+      role: m.role,
+      content: m.content,
+      error: m.error,
+      thinking: m.thinking ? m.thinking.substring(0, 200) : undefined,
+      tools: m.tools.map(t => ({ name: t.name, input: t.input.substring(0, 200), status: t.status })),
+    }));
+    // Update title from first user message
+    const firstUser = this.messages.find(m => m.role === 'user' && m.content);
+    if (firstUser && conv.title === 'New Chat') {
+      conv.title = firstUser.content.substring(0, 50);
+    }
+    try {
+      await window.electronAPI.saveConversation(conv);
+    } catch {}
+  }
+
+  private ensureConversation(sessionId?: string) {
+    if (this.currentConversationId) return;
+    const id = 'conv-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
+    const conv: ConversationEntry = {
+      id,
+      sessionId: sessionId || '',
+      title: 'New Chat',
+      timestamp: Date.now(),
+      messages: [],
+    };
+    this.conversations.unshift(conv);
+    this.currentConversationId = id;
+    this.groupConversations();
+  }
+
+  async newChat() {
+    // Save current conversation first
+    await this.saveCurrentConversation();
+
+    // Clear state
+    this.messages = [];
+    this.currentAssistant = null;
+    this.isWaiting = false;
+    this.currentActivity = '';
+    this.pendingQueue = [];
+    this.currentConversationId = null;
+
+    // Stop any streaming
+    if (this.claude.isStreaming) {
+      this.stopGeneration();
+    }
+
+    // Create a new ACP session
+    try {
+      const result = await window.electronAPI.claudeNewSession(this.claude.getWorkDir());
+      if (result.success && result.sessionId) {
+        this.ensureConversation(result.sessionId);
+      } else {
+        // Session creation failed, still allow typing — it will auto-connect on send
+        this.ensureConversation();
+      }
+    } catch {
+      this.ensureConversation();
+    }
+
+    this.sidebarOpen = false;
+    this.cdr.detectChanges();
+  }
+
+  async loadConversation(conv: ConversationEntry) {
+    if (conv.id === this.currentConversationId) {
+      this.sidebarOpen = false;
+      return;
+    }
+
+    // Save current conversation
+    await this.saveCurrentConversation();
+
+    // Stop streaming
+    if (this.claude.isStreaming) {
+      this.stopGeneration();
+    }
+
+    // Load messages from conversation
+    this.currentConversationId = conv.id;
+    this.messages = (conv.messages || []).map((m: any) => ({
+      role: m.role,
+      content: m.content || '',
+      tools: (m.tools || []).map((t: any) => ({
+        id: t.name + '-' + Date.now(),
+        name: t.name || 'Tool',
+        input: t.input || '',
+        status: t.status || 'completed',
+        output: '',
+        expanded: false,
+      })),
+      error: m.error,
+      thinking: m.thinking,
+      showTools: false,
+    }));
+
+    this.currentAssistant = null;
+    this.isWaiting = false;
+    this.currentActivity = '';
+    this.pendingQueue = [];
+    this.shouldScroll = true;
+
+    // Try to resume ACP session
+    try {
+      const result = await window.electronAPI.claudeNewSession(
+        this.claude.getWorkDir(),
+        conv.sessionId || undefined,
+      );
+      if (result.success && result.sessionId) {
+        conv.sessionId = result.sessionId;
+      }
+    } catch {
+      // Resume failed — user can still see messages and start fresh
+    }
+
+    this.sidebarOpen = false;
+    this.cdr.detectChanges();
+  }
+
+  async deleteConversation(id: string, event: Event) {
+    event.stopPropagation();
+    try {
+      await window.electronAPI.deleteConversation(id);
+    } catch {}
+    this.conversations = this.conversations.filter(c => c.id !== id);
+    this.groupConversations();
+
+    if (this.currentConversationId === id) {
+      this.currentConversationId = null;
+      this.messages = [];
+    }
+    this.cdr.detectChanges();
   }
 
   truncate(text: string, max: number): string {

@@ -11,18 +11,30 @@ export interface StreamEvent {
   status?: string;
 }
 
+export interface ConversationEntry {
+  id: string;
+  sessionId: string;
+  title: string;
+  timestamp: number;
+  messages: any[];
+}
+
 declare global {
   interface Window {
     electronAPI: {
       checkTool: (tool: string) => Promise<{ installed: boolean; version: string | null }>;
       installTool: (tool: string) => Promise<{ success: boolean; output?: string; error?: string }>;
-      claudeChat: (message: string, workDir: string, imageBase64?: string) => Promise<{ success: boolean; output: string }>;
+      claudeChat: (message: string, workDir: string, imageBase64?: string) => Promise<{ success: boolean; output: string; sessionId?: string }>;
       claudeCancel: () => Promise<any>;
       onClaudeStream: (callback: (data: any) => void) => void;
       onClaudeStreamEnd: (callback: (data: any) => void) => void;
       removeStreamListeners: () => void;
       getOpenclawStatus: () => Promise<any>;
       restartOpenclaw: () => Promise<any>;
+      getConversations: () => Promise<ConversationEntry[]>;
+      saveConversation: (conv: ConversationEntry) => Promise<any>;
+      deleteConversation: (id: string) => Promise<any>;
+      claudeNewSession: (workDir: string, resumeSessionId?: string) => Promise<{ success: boolean; sessionId?: string; error?: string }>;
     };
   }
 }

@@ -704,3 +704,90 @@ ipcMain.handle('minimize-to-tray', async () => {
   mainWindow?.hide();
   return { success: true };
 });
+
+// ============ IPC: CONVERSATION HISTORY ============
+
+const CONVERSATIONS_FILE = path.join(os.homedir(), '.xbb-desktop', 'conversations.json');
+
+function loadConversations(): any[] {
+  try {
+    if (fs.existsSync(CONVERSATIONS_FILE)) {
+      return JSON.parse(fs.readFileSync(CONVERSATIONS_FILE, 'utf8'));
+    }
+  } catch {}
+  return [];
+}
+
+function writeConversations(convs: any[]): void {
+  try {
+    const dir = path.dirname(CONVERSATIONS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(CONVERSATIONS_FILE, JSON.stringify(convs, null, 2), 'utf8');
+  } catch {}
+}
+
+ipcMain.handle('get-conversations', async () => {
+  return loadConversations();
+});
+
+ipcMain.handle('save-conversation', async (_, conv: any) => {
+  const convs = loadConversations();
+  const idx = convs.findIndex((c: any) => c.id === conv.id);
+  if (idx >= 0) {
+    convs[idx] = conv;
+  } else {
+    convs.unshift(conv);
+  }
+  writeConversations(convs);
+  return { success: true };
+});
+
+ipcMain.handle('delete-conversation', async (_, id: string) => {
+  let convs = loadConversations();
+  convs = convs.filter((c: any) => c.id !== id);
+  writeConversations(convs);
+  return { success: true };
+});
+
+// ============ IPC: NEW SESSION (for conversation switching) ============
+
+ipcMain.handle('claude-new-session', async (_, workDir: string, resumeSessionId?: string) => {
+  try {
+    const targetDir = workDir || getHomeDir();
+
+    // Tear down existing connection
+    if (acpConnection) {
+      await acpConnection.disconnect();
+      acpConnection = null;
+    }
+
+    acpConnection = new AcpConnection();
+
+    acpConnection.onStreamChunk = (chunk: StreamChunk) => {
+      mainWindow?.webContents.send('claude-stream', chunk);
+    };
+    acpConnection.onError = (err: string) => {
+      mainWindow?.webContents.send('claude-stream', { type: 'error', content: err });
+    };
+    acpConnection.onDisconnect = (info) => {
+      mainWindow?.webContents.send('claude-stream', {
+        type: 'error',
+        content: `ACP process disconnected (code: ${info.code}, signal: ${info.signal})`,
+      });
+    };
+
+    await acpConnection.connect(targetDir, {
+      ANTHROPIC_BASE_URL: CONFIG.apiBaseUrl,
+      ANTHROPIC_AUTH_TOKEN: CONFIG.apiKey,
+    });
+
+    const sessionId = await acpConnection.newSession(targetDir, resumeSessionId || undefined);
+    lastSessionId = sessionId;
+    saveSessionId(sessionId);
+    isFirstPromptInSession = true;
+
+    return { success: true, sessionId };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+});
