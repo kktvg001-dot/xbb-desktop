@@ -140,27 +140,88 @@ export async function loginViaMyapiOIDC(parentWindow: BrowserWindow): Promise<Au
 
         const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
-        // Get user info by running fetch INSIDE the auth window's browser context
-        // This uses the actual session cookie automatically (no header issues)
-        debug('Calling /api/user/self via browser context...');
-        const userDataStr = await authWindow.webContents.executeJavaScript(`
-          fetch('/api/user/self', { credentials: 'include' })
-            .then(r => r.json())
-            .then(d => JSON.stringify(d))
-            .catch(e => JSON.stringify({ success: false, message: e.message }))
+        // myapi requires New-Api-User header on every request (custom middleware).
+        // First, extract user info from the page's localStorage/state where myapi stores it.
+        debug('Extracting user info from page state...');
+        const userInfoStr = await authWindow.webContents.executeJavaScript(`
+          (function() {
+            // myapi React app stores user info in localStorage
+            try {
+              const user = localStorage.getItem('user');
+              if (user) return user;
+            } catch(e) {}
+            // Fallback: try to get from the page's global state
+            try {
+              const state = localStorage.getItem('persist:root');
+              if (state) return state;
+            } catch(e) {}
+            return '{}';
+          })()
         `);
-        debug(`/api/user/self response: ${userDataStr.substring(0, 200)}`);
+        debug(`Page state: ${userInfoStr.substring(0, 300)}`);
 
-        const userData = JSON.parse(userDataStr);
-        if (!userData.success || !userData.data) {
-          debug(`/api/user/self failed: ${userData.message || 'no data'}`);
-          throw new Error('Failed to get user info after login');
+        // Parse user info
+        let userId: number | null = null;
+        let email = '';
+        let displayName = '';
+        try {
+          const parsed = JSON.parse(userInfoStr);
+          userId = parsed.id || null;
+          email = parsed.email || '';
+          displayName = parsed.display_name || parsed.username || '';
+        } catch {}
+
+        // If we couldn't get user from localStorage, try calling API with different user IDs
+        if (!userId) {
+          debug('No user in localStorage, trying API with headers...');
+          // Try user IDs 1-20 to find which one matches this session
+          for (let tryId = 1; tryId <= 20; tryId++) {
+            const resp = await authWindow.webContents.executeJavaScript(`
+              fetch('/api/user/self', {
+                credentials: 'include',
+                headers: { 'New-Api-User': '${tryId}' }
+              })
+                .then(r => r.json())
+                .then(d => JSON.stringify(d))
+                .catch(e => JSON.stringify({ success: false, message: e.message }))
+            `);
+            try {
+              const data = JSON.parse(resp);
+              if (data.success && data.data) {
+                userId = data.data.id;
+                email = data.data.email || `user${data.data.id}@myapi.local`;
+                displayName = data.data.display_name || data.data.username || '';
+                debug(`Found user via brute check: id=${userId}, email=${email}`);
+                break;
+              }
+            } catch {}
+          }
         }
 
-        const user = userData.data;
-        const email = user.email || `user${user.id}@myapi.local`;
-        const displayName = user.display_name || user.username;
-        debug(`Session verified: ${email} (id=${user.id})`);
+        if (!userId) {
+          debug('Could not determine user ID from session');
+          throw new Error('Could not determine user ID after login');
+        }
+
+        // Now call /api/user/self with the correct header to get full user data
+        if (!email) {
+          const selfResp = await authWindow.webContents.executeJavaScript(`
+            fetch('/api/user/self', {
+              credentials: 'include',
+              headers: { 'New-Api-User': '${userId}' }
+            })
+              .then(r => r.json())
+              .then(d => JSON.stringify(d))
+              .catch(e => JSON.stringify({ success: false, message: e.message }))
+          `);
+          const selfData = JSON.parse(selfResp);
+          if (selfData.success && selfData.data) {
+            email = selfData.data.email || `user${userId}@myapi.local`;
+            displayName = selfData.data.display_name || selfData.data.username || '';
+          }
+        }
+
+        debug(`User resolved: id=${userId}, email=${email}, name=${displayName}`);
 
         // Call provision endpoint
         debug('Calling provision endpoint...');
@@ -169,7 +230,7 @@ export async function loginViaMyapiOIDC(parentWindow: BrowserWindow): Promise<Au
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             session_cookie: cookieStr,
-            myapi_user_id: user.id,
+            myapi_user_id: userId,
             verified_email: email,
             verified_name: displayName,
           }),
@@ -183,7 +244,7 @@ export async function loginViaMyapiOIDC(parentWindow: BrowserWindow): Promise<Au
           email: provResult.data.email,
           name: provResult.data.name,
           picture: provResult.data.picture,
-          myapiUserId: provResult.data.userId,
+          myapiUserId: provResult.data.userId || userId,
           myapiApiKey: provResult.data.apiKey,
           myapiBaseUrl: provResult.data.baseUrl,
           loggedInAt: Date.now(),
